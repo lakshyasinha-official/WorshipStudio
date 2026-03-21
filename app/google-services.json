@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "131501382748",
+    "project_id": "worshipstudio-af3bc",
+    "storage_bucket": "worshipstudio-af3bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:131501382748:android:da061a1e65bf49f5f79a99",
+        "android_client_info": {
+          "package_name": "com.example.worshipstudio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBr3VuAhCs2urcY3f5ovGLWFlZbLx1JvyM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
