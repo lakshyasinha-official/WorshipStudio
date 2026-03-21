@@ -1,5 +1,10 @@
 package com.example.worshipstudio.ui.screens
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -63,34 +69,72 @@ fun LiveSessionScreen(
     songViewModel: SongViewModel,
     onBack: () -> Unit
 ) {
-    val state      by sessionViewModel.state.collectAsState()
-    val song       = state.currentSong
-    val session    = state.session
-    val currentKey = song?.rootKey    ?: "C"
-    val keyQuality = song?.keyQuality ?: "Major"
-    val totalSongs = state.set?.songs?.size ?: 0
+    val state            by sessionViewModel.state.collectAsState()
+    val song             = state.currentSong
+    val session          = state.session
+    val currentKey       = song?.rootKey    ?: "C"
+    val keyQuality       = song?.keyQuality ?: "Major"
+    val totalSongs       = state.set?.songs?.size ?: 0
+    val participantCount = state.participantCount
 
     LaunchedEffect(sessionId, isAdmin) {
-        if (!isAdmin) sessionViewModel.joinSession(sessionId, "")
+        if (isAdmin) sessionViewModel.connectAsAdmin(sessionId)
+        else         sessionViewModel.joinSession(sessionId, "")
     }
 
+    // Pulsing dot animation
+    val infiniteTransition = rememberInfiniteTransition(label = "livePulse")
+    val pulse by infiniteTransition.animateFloat(
+        initialValue  = 0.4f,
+        targetValue   = 1f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+        label         = "liveDotAlpha"
+    )
+
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Session: $sessionId")
-                        Text(
-                            if (isAdmin) "Admin — controlling" else "Member — read-only",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isAdmin) MaterialTheme.colorScheme.primary
-                                    else         MaterialTheme.colorScheme.secondary
-                        )
+                        // Session ID + live dot
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Canvas(modifier = Modifier.size(9.dp)) {
+                                drawCircle(color = Color(0xFF4CAF50).copy(alpha = pulse))
+                                drawCircle(color = Color(0xFF4CAF50), radius = size.minDimension * 0.38f)
+                            }
+                            Text(sessionId, fontWeight = FontWeight.Bold)
+                        }
+                        // Role + device count
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                if (isAdmin) "Admin · controlling" else "Member · read-only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isAdmin) MaterialTheme.colorScheme.primary
+                                        else         MaterialTheme.colorScheme.secondary
+                            )
+                            // Separator dot
+                            Canvas(modifier = Modifier.size(3.dp)) {
+                                drawCircle(color = Color.Gray)
+                            }
+                            Text(
+                                "$participantCount connected",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (isAdmin) sessionViewModel.endSession()
+                        else         sessionViewModel.leaveSession()
                         onBack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")

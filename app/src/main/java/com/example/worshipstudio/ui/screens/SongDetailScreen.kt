@@ -161,6 +161,7 @@ fun SongDetailScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(state.song?.name ?: "") },

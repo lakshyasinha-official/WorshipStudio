@@ -17,4 +17,5 @@ sealed class Screen(val route: String) {
     object LiveSession : Screen("live_session/{sessionId}/{isAdmin}") {
         fun createRoute(sessionId: String, isAdmin: Boolean) = "live_session/$sessionId/$isAdmin"
     }
+    object Settings : Screen("settings")
 }

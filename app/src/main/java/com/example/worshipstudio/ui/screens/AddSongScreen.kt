@@ -165,6 +165,7 @@ fun AddSongScreen(
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text(if (songId != null) "Edit Song" else "Add Song") },

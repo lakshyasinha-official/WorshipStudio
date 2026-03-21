@@ -14,22 +14,29 @@ import com.example.worshipstudio.ui.screens.CreateSetScreen
 import com.example.worshipstudio.ui.screens.LiveSessionScreen
 import com.example.worshipstudio.ui.screens.LoginScreen
 import com.example.worshipstudio.ui.screens.SetDetailScreen
+import com.example.worshipstudio.ui.screens.SettingsScreen
 import com.example.worshipstudio.ui.screens.SongDetailScreen
 import com.example.worshipstudio.ui.screens.SongListScreen
+import com.example.worshipstudio.utils.AppTheme
 import com.example.worshipstudio.viewmodel.AuthViewModel
 import com.example.worshipstudio.viewmodel.SessionViewModel
 import com.example.worshipstudio.viewmodel.SetViewModel
+import com.example.worshipstudio.viewmodel.SettingsViewModel
 import com.example.worshipstudio.viewmodel.SongViewModel
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    currentTheme: AppTheme = AppTheme.NIGHTFALL,
+    onThemeChange: (AppTheme) -> Unit = {}
+) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.state.collectAsState()
 
     // Shared single instance — all screens see the same song list state
-    val songViewModel: SongViewModel = viewModel()
-    val setViewModel: SetViewModel = viewModel()
+    val songViewModel: SongViewModel     = viewModel()
+    val setViewModel: SetViewModel       = viewModel()
+    val settingsViewModel: SettingsViewModel = viewModel()
 
     val startDestination = if (authState.isLoggedIn) Screen.SongList.route else Screen.Login.route
 
@@ -50,15 +57,26 @@ fun AppNavigation() {
             SongListScreen(
                 authViewModel = authViewModel,
                 songViewModel = songViewModel,
-                setViewModel = setViewModel,
-                onSongClick  = { navController.navigate(Screen.SongDetail.createRoute(it)) },
-                onAddSong    = { navController.navigate(Screen.AddSong.createRoute()) },
-                onSetClick   = { navController.navigate(Screen.SetDetail.createRoute(it)) },
-                onCreateSet  = { navController.navigate(Screen.CreateSet.route) },
-                onLogout = {
+                setViewModel  = setViewModel,
+                onSongClick   = { navController.navigate(Screen.SongDetail.createRoute(it)) },
+                onAddSong     = { navController.navigate(Screen.AddSong.createRoute()) },
+                onSetClick    = { navController.navigate(Screen.SetDetail.createRoute(it)) },
+                onCreateSet   = { navController.navigate(Screen.CreateSet.route) },
+                onSettings    = { navController.navigate(Screen.Settings.route) },
+                onLogout      = {
                     authViewModel.logout()
                     navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
                 }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                authViewModel     = authViewModel,
+                settingsViewModel = settingsViewModel,
+                currentTheme      = currentTheme,
+                onThemeChange     = onThemeChange,
+                onBack            = { navController.popBackStack() }
             )
         }
 
