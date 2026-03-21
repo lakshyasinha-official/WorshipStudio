@@ -17,3 +17,4 @@ local.properties
 # Firebase — do not commit
 google-services.json
 app/google-services.json
+.claude/
