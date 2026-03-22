@@ -1,5 +1,6 @@
 package com.example.worshipstudio.viewmodel
 
+import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.worshipstudio.data.model.Song
@@ -9,12 +10,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+@Stable
 data class SongListState(
-    val songs: List<Song> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
+    val songs:       List<Song> = emptyList(), // displayed (filtered)
+    val allSongs:    List<Song> = emptyList(), // full church library
+    val activeTagId: String?    = null,
+    val isLoading:   Boolean    = false,
+    val error:       String?    = null
 )
 
+@Stable
 data class SongDetailState(
     val song: Song? = null,
     val currentKey: String = "C",
@@ -36,7 +41,11 @@ class SongViewModel : ViewModel() {
         viewModelScope.launch {
             _listState.value = _listState.value.copy(isLoading = true)
             val songs = repo.getSongs(churchId)
-            _listState.value = _listState.value.copy(songs = songs, isLoading = false)
+            _listState.value = _listState.value.copy(
+                allSongs  = songs,
+                songs     = applyTagFilter(songs, _listState.value.activeTagId),
+                isLoading = false
+            )
         }
     }
 
@@ -45,9 +54,27 @@ class SongViewModel : ViewModel() {
             _listState.value = _listState.value.copy(isLoading = true)
             val songs = if (query.isBlank()) repo.getSongs(churchId)
                         else repo.searchSongs(churchId, query)
-            _listState.value = _listState.value.copy(songs = songs, isLoading = false)
+            // When searching, update allSongs so tag filter applies on top
+            _listState.value = _listState.value.copy(
+                allSongs  = songs,
+                songs     = applyTagFilter(songs, _listState.value.activeTagId),
+                isLoading = false
+            )
         }
     }
+
+    /** Toggle a tag filter. Passing the same tagId again clears it. */
+    fun filterByTag(tagId: String?) {
+        val s = _listState.value
+        val next = if (tagId == s.activeTagId) null else tagId
+        _listState.value = s.copy(
+            activeTagId = next,
+            songs       = applyTagFilter(s.allSongs, next)
+        )
+    }
+
+    private fun applyTagFilter(songs: List<Song>, tagId: String?) =
+        if (tagId == null) songs else songs.filter { tagId in it.tags }
 
     fun loadSong(songId: String) {
         viewModelScope.launch {

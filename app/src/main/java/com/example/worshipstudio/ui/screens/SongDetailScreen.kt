@@ -22,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.automirrored.filled.Subject
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +36,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState as rememberHorizontalScrollState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
@@ -46,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +62,7 @@ import com.example.worshipstudio.data.model.SongPart
 import com.example.worshipstudio.engine.ChordEngine
 import com.example.worshipstudio.ui.components.ChordLyricView
 import com.example.worshipstudio.viewmodel.SongViewModel
+import com.example.worshipstudio.viewmodel.TagViewModel
 import kotlinx.coroutines.launch
 
 private fun partColor(type: String): Color = when (type) {
@@ -72,15 +78,19 @@ private fun partColor(type: String): Color = when (type) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongDetailScreen(
-    songId: String,
+    songId:        String,
     songViewModel: SongViewModel,
-    onBack: () -> Unit,
-    onEdit: () -> Unit
+    tagViewModel:  TagViewModel,
+    isAdmin:       Boolean = false,
+    onBack:        () -> Unit,
+    onEdit:        () -> Unit
 ) {
-    val state       by songViewModel.detailState.collectAsState()
-    val sheetState  = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope       = rememberCoroutineScope()
+    val state         by songViewModel.detailState.collectAsState()
+    val tagState      by tagViewModel.state.collectAsState()
+    val sheetState    = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope         = rememberCoroutineScope()
     var showKeyPicker by remember { mutableStateOf(false) }
+    var simplified    by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(songId) { songViewModel.loadSong(songId) }
 
@@ -171,7 +181,46 @@ fun SongDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit") }
+                    // ── Simplified / Full toggle pill ──────────────────────
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { simplified = false },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.MusicNote,
+                                    contentDescription = "Full view",
+                                    tint = if (!simplified)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { simplified = true },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Subject,
+                                    contentDescription = "Simplified view",
+                                    tint = if (simplified)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (isAdmin) {
+                        IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit") }
+                    }
                 }
             )
         }
@@ -213,7 +262,6 @@ fun SongDetailScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                // Key value in primary colour — looks tappable
                                 Text(
                                     text       = state.currentKey,
                                     style      = MaterialTheme.typography.titleMedium,
@@ -245,11 +293,41 @@ fun SongDetailScreen(
                                     colors  = SuggestionChipDefaults.suggestionChipColors(containerColor = chipColor)
                                 )
                             }
+
+                            // Sections count + hint
                             Text(
                                 "${song.parts.size} sections  •  tap key to change",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            // ── Tag chips ─────────────────────────────────────
+                            if (song.tags.isNotEmpty()) {
+                                val tagMap = tagState.tags.associateBy { it.id }
+                                Row(
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .horizontalScroll(rememberHorizontalScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment     = Alignment.CenterVertically
+                                ) {
+                                    song.tags.forEach { tagId ->
+                                        val name = tagMap[tagId]?.name ?: return@forEach
+                                        SuggestionChip(
+                                            onClick = {},
+                                            label   = {
+                                                Text(
+                                                    name,
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            },
+                                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
 
                         // Fine-tune transpose
@@ -269,7 +347,8 @@ fun SongDetailScreen(
                             SongPartSection(
                                 part       = part,
                                 currentKey = state.currentKey,
-                                keyQuality = state.currentQuality
+                                keyQuality = state.currentQuality,
+                                simplified = simplified
                             )
                             Spacer(Modifier.height(16.dp))
                         }
@@ -279,7 +358,8 @@ fun SongDetailScreen(
                             currentKey = state.currentKey,
                             keyQuality = state.currentQuality,
                             modifier   = Modifier.fillMaxWidth(),
-                            textSize   = 18
+                            textSize   = 18,
+                            simplified = simplified
                         )
                     }
                     Spacer(Modifier.height(24.dp))
@@ -291,7 +371,7 @@ fun SongDetailScreen(
 
 // ── Section card ──────────────────────────────────────────────────────────────
 @Composable
-private fun SongPartSection(part: SongPart, currentKey: String, keyQuality: String) {
+private fun SongPartSection(part: SongPart, currentKey: String, keyQuality: String, simplified: Boolean = false) {
     val color = partColor(part.type)
     val displayName = when (part.type) {
         "Start", "End" -> part.type
@@ -333,7 +413,8 @@ private fun SongPartSection(part: SongPart, currentKey: String, keyQuality: Stri
                 currentKey = currentKey,
                 keyQuality = keyQuality,
                 modifier   = Modifier.fillMaxWidth().padding(12.dp),
-                textSize   = 18
+                textSize   = 18,
+                simplified = simplified
             )
         }
     }

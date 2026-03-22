@@ -57,6 +57,7 @@ import com.example.worshipstudio.data.model.SongPart
 import com.example.worshipstudio.engine.ChordEngine
 import com.example.worshipstudio.viewmodel.AuthViewModel
 import com.example.worshipstudio.viewmodel.SongViewModel
+import com.example.worshipstudio.viewmodel.TagViewModel
 import java.util.UUID
 
 // ── Internal state holder for each part card ──────────────────────────────────
@@ -91,20 +92,29 @@ private fun partColor(type: String): Color = when (type) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddSongScreen(
-    songId: String?,
+    songId:        String?,
     authViewModel: AuthViewModel,
     songViewModel: SongViewModel,
-    onSaved: () -> Unit,
-    onBack: () -> Unit
+    tagViewModel:  TagViewModel,
+    onSaved:       () -> Unit,
+    onBack:        () -> Unit
 ) {
     val authState   by authViewModel.state.collectAsState()
     val detailState by songViewModel.detailState.collectAsState()
+    val tagState    by tagViewModel.state.collectAsState()
+    val isAdmin     = authState.role == "admin"
 
     var name       by remember { mutableStateOf("") }
     var rootKey    by remember { mutableStateOf("C") }
     var keyQuality by remember { mutableStateOf("Major") }
 
-    val parts = remember { mutableStateListOf<PartEntry>() }
+    val parts        = remember { mutableStateListOf<PartEntry>() }
+    val selectedTags = remember { mutableStateListOf<String>() }  // selected tag IDs
+
+    // Load tags for church
+    LaunchedEffect(authState.churchId) {
+        if (authState.churchId.isNotEmpty()) tagViewModel.loadTags(authState.churchId)
+    }
 
     // Load existing song when editing
     LaunchedEffect(songId) { if (songId != null) songViewModel.loadSong(songId) }
@@ -114,6 +124,8 @@ fun AddSongScreen(
             rootKey    = song.rootKey
             keyQuality = song.keyQuality
             parts.clear()
+            selectedTags.clear()
+            selectedTags.addAll(song.tags)
             if (song.parts.isNotEmpty()) {
                 song.parts.forEach { p ->
                     parts.add(PartEntry(
@@ -270,6 +282,37 @@ fun AddSongScreen(
             // ── Dynamic scale reference ──────────────────────────────────────
             ScaleHelperRow(rootKey = rootKey, keyQuality = keyQuality)
 
+            // ── Tags (admin only) ─────────────────────────────────────────────
+            if (isAdmin && tagState.tags.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(14.dp))
+                Text("Tags", style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    tagState.tags.forEach { tag ->
+                        val selected = tag.id in selectedTags
+                        FilterChip(
+                            selected = selected,
+                            onClick  = {
+                                if (selected) selectedTags.remove(tag.id)
+                                else          selectedTags.add(tag.id)
+                            },
+                            label  = { Text(tag.name) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor     = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
             HorizontalDivider()
             Spacer(Modifier.height(12.dp))
@@ -348,7 +391,8 @@ fun AddSongScreen(
                         rootKey    = rootKey,
                         keyQuality = keyQuality,
                         createdBy  = authState.userId,
-                        churchId   = authState.churchId
+                        churchId   = authState.churchId,
+                        tags       = selectedTags.toList()
                     )
                     if (songId != null) songViewModel.updateSong(song) { onSaved() }
                     else               songViewModel.addSong(song)    { onSaved() }

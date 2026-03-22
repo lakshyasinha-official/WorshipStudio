@@ -5,11 +5,8 @@ import com.google.firebase.firestore.IgnoreExtraProperties
 
 @Immutable
 @IgnoreExtraProperties
-data class WorshipSet(
-    val id: String = "",
-    val name: String = "",
-    val date: String = "",
-    val songs: List<String> = emptyList(),
-    val createdBy: String = "",
+data class Tag(
+    val id:       String = "",
+    val name:     String = "",
     val churchId: String = ""
 )

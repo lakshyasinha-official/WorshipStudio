@@ -1,7 +1,9 @@
 package com.example.worshipstudio.data.model
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.firestore.IgnoreExtraProperties
 
+@Immutable
 @IgnoreExtraProperties
 data class SongPart(
     val type: String = "",       // "Start" | "Verse" | "Chorus" | "Bridge" | "Other" | "End"

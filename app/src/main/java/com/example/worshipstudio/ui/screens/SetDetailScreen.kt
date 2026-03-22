@@ -21,17 +21,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -47,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -81,16 +82,20 @@ fun SetDetailScreen(
     sessionViewModel: SessionViewModel,
     onBack: () -> Unit,
     onSongClick: (String) -> Unit,
-    onStartSession: (String, Boolean) -> Unit
+    onStartSession: (String, Boolean) -> Unit,
+    onJoinSession: () -> Unit = {}
 ) {
     val authState by authViewModel.state.collectAsState()
     val setDetailState by setViewModel.detailState.collectAsState()
     val songListState by songViewModel.listState.collectAsState()
     val sessionState by sessionViewModel.state.collectAsState()
+    val isAdmin       = authState.role == "admin"
+    // Members can manage sets and start sessions; only admins touch the song DB
+    val canManageSet  = true   // all logged-in users
 
     var showAddSongDialog by remember { mutableStateOf(false) }
-    var showJoinDialog by remember { mutableStateOf(false) }
-    var sessionIdInput by remember { mutableStateOf("") }
+    var songSearchQuery   by remember { mutableStateOf("") }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var navigated by rememberSaveable { mutableStateOf(false) }
 
     val songMap = remember(songListState.songs) { songListState.songs.associateBy { it.id } }
@@ -118,6 +123,7 @@ fun SetDetailScreen(
                     }
                 },
                 actions = {
+                    // All users can add songs to a set
                     IconButton(onClick = { showAddSongDialog = true }) {
                         Icon(Icons.Default.Add, "Add Song")
                     }
@@ -131,7 +137,7 @@ fun SetDetailScreen(
                 val sessionActive = sessionState.sessionId.isNotEmpty()
                 if (sessionActive) {
                     ActiveSessionBanner(
-                        sessionId        = sessionState.sessionId,
+                        roomCode         = sessionState.roomCode.ifEmpty { sessionState.sessionId.take(4) },
                         participantCount = sessionState.participantCount,
                         isAdmin          = authState.role == "admin",
                         onOpen           = { onStartSession(sessionState.sessionId, sessionState.isAdmin) },
@@ -147,29 +153,28 @@ fun SetDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (authState.role == "admin") {
-                                Button(
-                                    onClick  = { sessionViewModel.createSession(set.id, authState.userId) },
-                                    modifier = Modifier.weight(1f),
-                                    enabled  = !sessionState.isLoading
-                                ) {
-                                    if (sessionState.isLoading) {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            modifier = Modifier.size(16.dp),
-                                            strokeWidth = 2.dp,
-                                            color = androidx.compose.ui.graphics.Color.White
-                                        )
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("Starting…")
-                                    } else {
-                                        Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Start Session")
-                                    }
+                            // All users (including members) can start a session
+                            Button(
+                                onClick  = { sessionViewModel.createSession(set.id, authState.userId, authState.churchId) },
+                                modifier = Modifier.weight(1f),
+                                enabled  = !sessionState.isLoading
+                            ) {
+                                if (sessionState.isLoading) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = androidx.compose.ui.graphics.Color.White
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Starting…")
+                                } else {
+                                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Start Session")
                                 }
                             }
                             OutlinedButton(
-                                onClick  = { showJoinDialog = true },
+                                onClick  = onJoinSession,
                                 modifier = Modifier.weight(1f)
                             ) { Text("Join Session") }
                         }
@@ -196,13 +201,14 @@ fun SetDetailScreen(
                     LazyColumn {
                         itemsIndexed(set.songs) { index, songId ->
                             SetSongItem(
-                                index = index,
-                                song = songMap[songId],
-                                songId = songId,
+                                index      = index,
+                                song       = songMap[songId],
+                                songId     = songId,
                                 totalSongs = set.songs.size,
-                                onClick = { songMap[songId]?.let { onSongClick(it.id) } },
-                                onRemove = { setViewModel.removeSongFromSet(songId) },
-                                onMoveUp = { setViewModel.moveSongUp(index) },
+                                isAdmin    = canManageSet,
+                                onClick    = { songMap[songId]?.let { onSongClick(it.id) } },
+                                onRemove   = { setViewModel.removeSongFromSet(songId) },
+                                onMoveUp   = { setViewModel.moveSongUp(index) },
                                 onMoveDown = { setViewModel.moveSongDown(index) }
                             )
                         }
@@ -211,72 +217,133 @@ fun SetDetailScreen(
             }
         }
 
+        // ── Add Song bottom sheet ──────────────────────────────────────────────
         if (showAddSongDialog) {
             val currentSongIds = setDetailState.set?.songs ?: emptyList()
-            val available = songListState.songs.filter { it.id !in currentSongIds }
-            AlertDialog(
-                onDismissRequest = { showAddSongDialog = false },
-                title = { Text("Add Song to Set") },
-                text = {
-                    if (available.isEmpty()) {
-                        Text("No more songs to add.")
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .height(300.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            available.forEach { song ->
-                                ListItem(
-                                    headlineContent = { Text(song.name) },
-                                    supportingContent = { Text("Key: ${song.rootKey}") },
-                                    modifier = Modifier.clickable {
-                                        setViewModel.addSongToSet(song.id)
-                                        showAddSongDialog = false
+            val available = remember(songListState.songs, currentSongIds) {
+                songListState.songs.filter { it.id !in currentSongIds }
+            }
+            val filtered = remember(available, songSearchQuery) {
+                val q = songSearchQuery.trim().lowercase()
+                if (q.isEmpty()) available
+                else available.filter {
+                    it.name.lowercase().contains(q) ||
+                    it.rootKey.lowercase().contains(q)
+                }
+            }
+
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showAddSongDialog = false
+                    songSearchQuery   = ""
+                },
+                sheetState = sheetState
+            ) {
+                // ── Header ────────────────────────────────────────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 4.dp),
+                    verticalAlignment          = Alignment.CenterVertically,
+                    horizontalArrangement      = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Add Song to Set",
+                        style      = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = {
+                        showAddSongDialog = false
+                        songSearchQuery   = ""
+                    }) {
+                        Icon(Icons.Default.Close, "Close")
+                    }
+                }
+
+                // ── Search bar ────────────────────────────────────────────────
+                OutlinedTextField(
+                    value         = songSearchQuery,
+                    onValueChange = { songSearchQuery = it },
+                    placeholder   = { Text("Search songs…") },
+                    leadingIcon   = { Icon(Icons.Default.Search, null) },
+                    singleLine    = true,
+                    shape         = RoundedCornerShape(14.dp),
+                    modifier      = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                // ── Results count ─────────────────────────────────────────────
+                Text(
+                    text  = when {
+                        available.isEmpty() -> "All songs already in set"
+                        filtered.isEmpty()  -> "No songs match \"$songSearchQuery\""
+                        else                -> "${filtered.size} song${if (filtered.size == 1) "" else "s"}"
+                    },
+                    style    = MaterialTheme.typography.labelMedium,
+                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(top = 6.dp))
+
+                // ── Song list ─────────────────────────────────────────────────
+                if (filtered.isEmpty()) {
+                    Box(
+                        modifier         = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if (available.isEmpty()) "No more songs to add."
+                            else "No results — try a different search.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    LazyColumn {
+                        items(filtered, key = { it.id }) { song ->
+                            ListItem(
+                                headlineContent   = { Text(song.name) },
+                                supportingContent = {
+                                    val info = buildString {
+                                        append("${song.rootKey} ${song.keyQuality}")
+                                        if (song.parts.isNotEmpty())
+                                            append("  •  ${song.parts.size} sections")
                                     }
-                                )
-                                HorizontalDivider()
-                            }
+                                    Text(info)
+                                },
+                                trailingContent = {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = "Add",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                modifier = Modifier.clickable {
+                                    setViewModel.addSongToSet(song.id)
+                                    showAddSongDialog = false
+                                    songSearchQuery   = ""
+                                }
+                            )
+                            HorizontalDivider()
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showAddSongDialog = false }) { Text("Close") }
                 }
-            )
+
+                Spacer(Modifier.height(24.dp))
+            }
         }
 
-        if (showJoinDialog) {
-            AlertDialog(
-                onDismissRequest = { showJoinDialog = false },
-                title = { Text("Join Session") },
-                text = {
-                    OutlinedTextField(
-                        value = sessionIdInput,
-                        onValueChange = { sessionIdInput = it },
-                        label = { Text("Session ID") }
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        if (sessionIdInput.isNotBlank()) {
-                            sessionViewModel.joinSession(sessionIdInput.trim().uppercase(), authState.userId)
-                            showJoinDialog = false
-                        }
-                    }) { Text("Join") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showJoinDialog = false }) { Text("Cancel") }
-                }
-            )
-        }
     }
 }
 
 // ── Active session banner ─────────────────────────────────────────────────────
 @Composable
 private fun ActiveSessionBanner(
-    sessionId: String,
+    roomCode: String,
     participantCount: Int,
     isAdmin: Boolean,
     onOpen: () -> Unit,
@@ -358,32 +425,30 @@ private fun ActiveSessionBanner(
 
             Spacer(Modifier.height(10.dp))
 
-            // ── Session ID row (tap to copy) ───────────────────────────────
+            // ── Room code display (large + tap to copy) ────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF2E7D32).copy(alpha = 0.08f))
-                    .clickable {
-                        clipboard.setText(AnnotatedString(sessionId))
-                    }
+                    .clickable { clipboard.setText(AnnotatedString(roomCode)) }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
                     Text(
-                        "Session Code",
+                        "Room Code",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text       = sessionId,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize   = 22.sp,
-                        color      = Color(0xFF1B5E20),
-                        letterSpacing = 4.sp
+                        text          = roomCode,
+                        fontFamily    = FontFamily.Monospace,
+                        fontWeight    = FontWeight.ExtraBold,
+                        fontSize      = 36.sp,
+                        color         = Color(0xFF1B5E20),
+                        letterSpacing = 8.sp
                     )
                 }
                 Text(
@@ -435,33 +500,28 @@ private fun SetSongItem(
     song: Song?,
     songId: String,
     totalSongs: Int,
+    isAdmin: Boolean,
     onClick: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
 ) {
     ListItem(
-        headlineContent = { Text("${index + 1}. ${song?.name ?: songId}") },
+        headlineContent   = { Text("${index + 1}. ${song?.name ?: songId}") },
         supportingContent = { song?.let { Text("Key: ${it.rootKey}") } },
-        leadingContent = {
+        leadingContent    = if (isAdmin) ({
             Column {
                 if (index > 0) {
-                    TextButton(
-                        onClick = onMoveUp,
-                        contentPadding = PaddingValues(0.dp)
-                    ) { Text("▲") }
+                    TextButton(onClick = onMoveUp, contentPadding = PaddingValues(0.dp)) { Text("▲") }
                 }
                 if (index < totalSongs - 1) {
-                    TextButton(
-                        onClick = onMoveDown,
-                        contentPadding = PaddingValues(0.dp)
-                    ) { Text("▼") }
+                    TextButton(onClick = onMoveDown, contentPadding = PaddingValues(0.dp)) { Text("▼") }
                 }
             }
-        },
-        trailingContent = {
+        }) else null,
+        trailingContent   = if (isAdmin) ({
             IconButton(onClick = onRemove) { Icon(Icons.Default.Delete, "Remove") }
-        },
+        }) else null,
         modifier = Modifier.clickable { onClick() }
     )
     HorizontalDivider()

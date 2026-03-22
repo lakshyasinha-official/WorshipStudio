@@ -1,7 +1,9 @@
 package com.example.worshipstudio.data.model
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.firestore.IgnoreExtraProperties
 
+@Immutable
 @IgnoreExtraProperties
 data class Song(
     val id: String = "",
@@ -15,7 +17,9 @@ data class Song(
     val createdBy: String = "",
     val churchId: String = "",
     val createdAt: Long = 0L,
-    val nameLowercase: String = ""
+    val nameLowercase: String = "",
+    /** Tag IDs assigned to this song. */
+    val tags: List<String> = emptyList()
 ) {
     /** Combined lyrics for display / search when using legacy format. */
     val combinedLyrics: String get() =

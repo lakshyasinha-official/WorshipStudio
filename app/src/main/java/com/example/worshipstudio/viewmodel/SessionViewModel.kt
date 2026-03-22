@@ -13,15 +13,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 data class SessionState(
-    val session: Session?       = null,
-    val set: WorshipSet?        = null,
-    val currentSong: Song?      = null,
-    val sessionId: String       = "",
-    val isAdmin: Boolean        = false,
-    val isLoading: Boolean      = false,
-    val error: String?          = null,
-    val participantCount: Int   = 0,        // live connected device count
-    val participantKey: String  = ""        // this device's presence key
+    val session:            Session?  = null,
+    val set:                WorshipSet? = null,
+    val currentSong:        Song?     = null,
+    val sessionId:          String    = "",
+    val roomCode:           String    = "",   // 4-digit code shown to admin
+    val isAdmin:            Boolean   = false,
+    val isLoading:          Boolean   = false,
+    val error:              String?   = null,
+    val participantCount:   Int       = 0,
+    val participantKey:     String    = "",
+    /** Church-wide active session found via auto-discovery (for banner). */
+    val churchActiveSession: Session? = null
 )
 
 class SessionViewModel : ViewModel() {
@@ -32,10 +35,9 @@ class SessionViewModel : ViewModel() {
     private val _state = MutableStateFlow(SessionState())
     val state: StateFlow<SessionState> = _state
 
-    // ── Admin: reconnect to an already-created session (LiveSessionScreen) ───
-    // Called when the admin navigates INTO LiveSessionScreen (fresh ViewModel).
+    // ── Admin: reconnect when LiveSessionScreen opens ─────────────────────────
     fun connectAsAdmin(sessionId: String) {
-        if (_state.value.sessionId == sessionId) return   // already connected
+        if (_state.value.sessionId == sessionId) return
         val key = sessionRepo.registerPresence(sessionId, "admin")
         _state.value = _state.value.copy(
             sessionId      = sessionId,
@@ -47,16 +49,16 @@ class SessionViewModel : ViewModel() {
         observeParticipantCount(sessionId)
     }
 
-    // ── Admin: create and own the session ─────────────────────────────────────
-    fun createSession(setId: String, adminId: String) {
+    // ── Admin: create a new session ───────────────────────────────────────────
+    fun createSession(setId: String, adminId: String, churchId: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
-            val result = sessionRepo.createSession(setId, adminId)
-            result.onSuccess { sessionId ->
-                // Register admin presence
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            val result = sessionRepo.createSession(setId, adminId, churchId)
+            result.onSuccess { (sessionId, roomCode) ->
                 val key = sessionRepo.registerPresence(sessionId, "admin")
                 _state.value = _state.value.copy(
                     sessionId      = sessionId,
+                    roomCode       = roomCode,
                     isAdmin        = true,
                     isLoading      = false,
                     participantKey = key
@@ -70,9 +72,10 @@ class SessionViewModel : ViewModel() {
         }
     }
 
-    // ── Member: join an existing session ──────────────────────────────────────
+    // ── Member: join by session ID (already resolved) ─────────────────────────
     fun joinSession(sessionId: String, userId: String) {
-        val key = sessionRepo.registerPresence(sessionId, "member")
+        if (_state.value.sessionId == sessionId) return
+        val key = sessionRepo.registerPresence(sessionId, userId.ifEmpty { "member" })
         _state.value = _state.value.copy(
             sessionId      = sessionId,
             isAdmin        = false,
@@ -83,17 +86,58 @@ class SessionViewModel : ViewModel() {
         observeParticipantCount(sessionId)
     }
 
-    // ── Internal: stream session data changes ─────────────────────────────────
+    // ── Resolve 4-digit room code → sessionId, then join ─────────────────────
+    fun joinByCode(
+        code:      String,
+        onSuccess: (String) -> Unit,
+        onError:   (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            val result = sessionRepo.findByRoomCode(code.trim())
+            result.onSuccess { sessionId ->
+                _state.value = _state.value.copy(isLoading = false)
+                onSuccess(sessionId)
+            }
+            result.onFailure { e ->
+                val msg = e.message ?: "Session not found"
+                _state.value = _state.value.copy(isLoading = false, error = msg)
+                onError(msg)
+            }
+        }
+    }
+
+    // ── Auto-discovery: watch for any active session in this church ───────────
+    fun observeChurchSession(churchId: String) {
+        if (churchId.isEmpty()) return
+        viewModelScope.launch {
+            sessionRepo.observeChurchSession(churchId).collect { active ->
+                _state.value = _state.value.copy(churchActiveSession = active)
+            }
+        }
+    }
+
+    // ── Internal: stream session changes ──────────────────────────────────────
     private fun observeSession(sessionId: String, knownSetId: String?) {
         viewModelScope.launch {
             sessionRepo.observeSession(sessionId).collect { session ->
-                session ?: return@collect
+                if (session == null) {
+                    // Session was deleted by admin
+                    if (!_state.value.isAdmin) {
+                        _state.value = _state.value.copy(
+                            session = null,
+                            error   = "Session has ended"
+                        )
+                    }
+                    return@collect
+                }
                 val currentSetId = knownSetId ?: session.setId
-                val set  = _state.value.set ?: setRepo.getSet(currentSetId)
+                val set    = _state.value.set ?: setRepo.getSet(currentSetId)
                 val songId = set?.songs?.getOrNull(session.currentSongIndex)
-                val song = if (songId != null) songRepo.getSong(songId) else null
+                val song   = if (songId != null) songRepo.getSong(songId) else null
                 _state.value = _state.value.copy(
                     session     = session,
+                    roomCode    = session.roomCode,
                     set         = set,
                     currentSong = song,
                     isLoading   = false
@@ -102,7 +146,6 @@ class SessionViewModel : ViewModel() {
         }
     }
 
-    // ── Internal: stream live participant count ────────────────────────────────
     private fun observeParticipantCount(sessionId: String) {
         viewModelScope.launch {
             sessionRepo.observeParticipantCount(sessionId).collect { count ->
@@ -111,10 +154,17 @@ class SessionViewModel : ViewModel() {
         }
     }
 
-    // ── Navigation ────────────────────────────────────────────────────────────
+    // ── Chord callout (admin only) ────────────────────────────────────────────
+    /** Toggle: tapping the same degree again clears it; tapping a new one sets it. */
+    fun setActiveChord(degree: String) {
+        val s = _state.value; if (!s.isAdmin) return
+        val next = if (degree == s.session?.activeChordDegree) "" else degree
+        sessionRepo.updateActiveChord(s.sessionId, next)
+    }
+
+    // ── Song navigation (admin only) ──────────────────────────────────────────
     fun nextSong() {
-        val s = _state.value
-        if (!s.isAdmin) return
+        val s = _state.value; if (!s.isAdmin) return
         val session  = s.session ?: return
         val maxIndex = (s.set?.songs?.size ?: 1) - 1
         val newIndex = (session.currentSongIndex + 1).coerceAtMost(maxIndex)
@@ -122,8 +172,7 @@ class SessionViewModel : ViewModel() {
     }
 
     fun previousSong() {
-        val s = _state.value
-        if (!s.isAdmin) return
+        val s = _state.value; if (!s.isAdmin) return
         val session  = s.session ?: return
         val newIndex = (session.currentSongIndex - 1).coerceAtLeast(0)
         viewModelScope.launch { sessionRepo.updateSongIndex(session.sessionId, newIndex) }
@@ -133,22 +182,20 @@ class SessionViewModel : ViewModel() {
     fun endSession() {
         viewModelScope.launch {
             val s = _state.value
-            if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty()) {
+            if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty())
                 sessionRepo.removePresence(s.sessionId, s.participantKey)
-            }
-            if (s.isAdmin && s.sessionId.isNotEmpty()) {
-                sessionRepo.endSession(s.sessionId)
-            }
+            if (s.isAdmin && s.sessionId.isNotEmpty())
+                sessionRepo.endSession(s.sessionId, s.roomCode)
             _state.value = SessionState()
         }
     }
 
-    // Call this when a member leaves (back button) without ending the session
     fun leaveSession() {
         val s = _state.value
-        if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty()) {
+        if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty())
             sessionRepo.removePresence(s.sessionId, s.participantKey)
-        }
         _state.value = SessionState()
     }
+
+    fun clearError() { _state.value = _state.value.copy(error = null) }
 }

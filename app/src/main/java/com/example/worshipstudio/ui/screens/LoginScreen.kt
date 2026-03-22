@@ -1,46 +1,25 @@
 package com.example.worshipstudio.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Church
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -54,11 +33,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.worshipstudio.R
 import com.example.worshipstudio.utils.CredentialsStore
 import com.example.worshipstudio.viewmodel.AuthViewModel
+
+private enum class LoginMode { SIGN_IN, JOIN_CHURCH, NEW_CHURCH }
 
 @Composable
 fun LoginScreen(
@@ -68,18 +50,16 @@ fun LoginScreen(
     val context = LocalContext.current
     val state   by viewModel.state.collectAsState()
 
-    // ── Pre-fill from saved credentials ───────────────────────────────────────
     val saved = remember { CredentialsStore.load(context) }
 
-    var email          by remember { mutableStateOf(saved?.email    ?: "") }
-    var password       by remember { mutableStateOf(saved?.password ?: "") }
-    var churchId       by remember { mutableStateOf(saved?.churchId ?: "") }
-    var role           by remember { mutableStateOf("member") }
-    var isRegisterMode by remember { mutableStateOf(false) }
-    var rememberMe     by remember { mutableStateOf(saved != null) }
-    var passwordVisible by remember { mutableStateOf(false) }
+    var mode        by remember { mutableStateOf(LoginMode.SIGN_IN) }
+    var email       by remember { mutableStateOf(saved?.email    ?: "") }
+    var password    by remember { mutableStateOf(saved?.password ?: "") }
+    var churchId    by remember { mutableStateOf(saved?.churchId ?: "") }
+    var displayName by remember { mutableStateOf("") }
+    var rememberMe  by remember { mutableStateOf(saved != null) }
+    var pwVisible   by remember { mutableStateOf(false) }
 
-    // ── Navigate on successful login ──────────────────────────────────────────
     LaunchedEffect(state.isLoggedIn, state.churchId) {
         if (state.isLoggedIn && state.churchId.isNotEmpty()) {
             if (rememberMe) CredentialsStore.save(context, email, password, churchId)
@@ -90,31 +70,22 @@ fun LoginScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // ── Blurred church background ─────────────────────────────────────────
+        // ── Background ────────────────────────────────────────────────────────
         Image(
             painter            = painterResource(R.drawable.church_bg),
             contentDescription = null,
             contentScale       = ContentScale.Crop,
-            modifier           = Modifier
-                .fillMaxSize()
-                .blur(2.dp)
+            modifier           = Modifier.fillMaxSize().blur(2.dp)
         )
-
-        // ── Dark gradient scrim so text stays readable ────────────────────────
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.45f),
-                            Color.Black.copy(alpha = 0.70f)
-                        )
-                    )
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(Color.Black.copy(alpha = 0.62f), Color.Black.copy(alpha = 0.82f))
                 )
+            )
         )
 
-        // ── Login card ────────────────────────────────────────────────────────
+        // ── Scrollable content ────────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -123,199 +94,308 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // App title
-            Text(
-                "WorshipSync",
-                fontSize   = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color      = Color.White
-            )
+            // Title
+            Text("WorshipSync", fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(Modifier.height(4.dp))
             Text(
-                if (isRegisterMode) "Create Account" else "Sign In",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White.copy(alpha = 0.80f)
+                "Worship together, in sync",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.70f)
             )
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
 
-            // ── Frosted glass card ────────────────────────────────────────────
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp)),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.15f),
-                tonalElevation = 0.dp
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+            // ── Animated card ─────────────────────────────────────────────────
+            AnimatedContent(
+                targetState = mode,
+                transitionSpec = {
+                    val forward = targetState != LoginMode.SIGN_IN
+                    (slideInHorizontally { if (forward) it else -it } + fadeIn()) togetherWith
+                    (slideOutHorizontally { if (forward) -it else it } + fadeOut())
+                },
+                label = "login_mode"
+            ) { currentMode ->
+                Surface(
+                    modifier       = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
+                    shape          = RoundedCornerShape(28.dp),
+                    color          = Color.White.copy(alpha = 0.14f),
+                    tonalElevation = 0.dp
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
 
-                    // ── Email ─────────────────────────────────────────────────
-                    GlassTextField(
-                        value         = email,
-                        onValueChange = { email = it },
-                        label         = "Email",
-                        keyboardType  = KeyboardType.Email
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    // ── Password with eye toggle ──────────────────────────────
-                    GlassTextField(
-                        value                = password,
-                        onValueChange        = { password = it },
-                        label                = "Password",
-                        keyboardType         = KeyboardType.Password,
-                        visualTransformation = if (passwordVisible) VisualTransformation.None
-                                              else                  PasswordVisualTransformation(),
-                        trailingIcon         = {
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(
-                                    imageVector        = if (passwordVisible) Icons.Default.VisibilityOff
-                                                         else                 Icons.Default.Visibility,
-                                    contentDescription = if (passwordVisible) "Hide" else "Show",
-                                    tint               = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    // ── Church ID ─────────────────────────────────────────────
-                    GlassTextField(
-                        value         = churchId,
-                        onValueChange = { churchId = it },
-                        label         = "Church ID"
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Same email can belong to multiple churches",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.60f),
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-
-                    // ── Role (register only) ──────────────────────────────────
-                    if (isRegisterMode) {
-                        Spacer(Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Role: ", color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium)
-                            RadioButton(selected = role == "member",
-                                onClick = { role = "member" })
-                            Text("Member", color = Color.White)
-                            Spacer(Modifier.width(16.dp))
-                            RadioButton(selected = role == "admin",
-                                onClick = { role = "admin" })
-                            Text("Admin", color = Color.White)
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.25f))
-                    Spacer(Modifier.height(8.dp))
-
-                    // ── Remember Me row ───────────────────────────────────────
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Checkbox(
-                                checked         = rememberMe,
-                                onCheckedChange = { checked ->
-                                    rememberMe = checked
-                                    if (!checked) CredentialsStore.clear(context)
+                        // Back arrow for sub-screens
+                        if (currentMode != LoginMode.SIGN_IN) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { mode = LoginMode.SIGN_IN; viewModel.clearError() },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = Color.White
+                                    )
                                 }
-                            )
-                            Text(
-                                "Remember me",
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                        if (CredentialsStore.isRemembered(context) && !isRegisterMode) {
-                            TextButton(onClick = {
-                                CredentialsStore.clear(context)
-                                rememberMe = false
-                                email = ""; password = ""; churchId = ""
-                            }) {
+                                Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Forget saved",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFFF6B6B)
+                                    if (currentMode == LoginMode.JOIN_CHURCH) "Join a Church"
+                                    else "Register New Church",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize   = 18.sp,
+                                    color      = Color.White
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                        }
+
+                        when (currentMode) {
+
+                            // ── Sign In ───────────────────────────────────────
+                            LoginMode.SIGN_IN -> {
+                                Text(
+                                    "Welcome back",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize   = 20.sp,
+                                    color      = Color.White
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "Sign in with your email, password and church name.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.65f)
+                                )
+                                Spacer(Modifier.height(20.dp))
+
+                                GlassTextField(email, { email = it }, "Email", KeyboardType.Email)
+                                Spacer(Modifier.height(12.dp))
+                                PasswordField(password, { password = it }, pwVisible) { pwVisible = !pwVisible }
+                                Spacer(Modifier.height(12.dp))
+                                ChurchField(churchId, { churchId = it })
+
+                                Spacer(Modifier.height(16.dp))
+                                RememberMeRow(rememberMe, { rememberMe = it }) {
+                                    CredentialsStore.clear(context)
+                                    rememberMe = false
+                                    email = ""; password = ""; churchId = ""
+                                }
+                                ErrorRow(state.error)
+                                Spacer(Modifier.height(8.dp))
+
+                                Button(
+                                    onClick  = { viewModel.login(email, password, churchId) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled  = !state.isLoading && email.isNotBlank()
+                                            && password.isNotBlank() && churchId.isNotBlank()
+                                ) {
+                                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp))
+                                    else Text("Sign In", fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(Modifier.height(20.dp))
+                                HorizontalDivider(color = Color.White.copy(alpha = 0.20f))
+                                Spacer(Modifier.height(16.dp))
+
+                                // Links to sub-screens
+                                Text(
+                                    "New here?",
+                                    style  = MaterialTheme.typography.labelMedium,
+                                    color  = Color.White.copy(alpha = 0.55f),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(Modifier.height(8.dp))
+
+                                OutlinedButton(
+                                    onClick  = { mode = LoginMode.JOIN_CHURCH; viewModel.clearError() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    border   = ButtonDefaults.outlinedButtonBorder(enabled = true),
+                                    colors   = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Text("Join a Church")
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(
+                                    onClick  = { mode = LoginMode.NEW_CHURCH; viewModel.clearError() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    border   = ButtonDefaults.outlinedButtonBorder(enabled = true),
+                                    colors   = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Text("Register a New Church")
+                                }
+                            }
+
+                            // ── Join Church ───────────────────────────────────
+                            LoginMode.JOIN_CHURCH -> {
+                                Text(
+                                    "Join as a member of an existing church.\nAsk your admin for the exact church name.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.65f)
+                                )
+                                Spacer(Modifier.height(20.dp))
+
+                                GlassTextField(displayName, { displayName = it }, "Your Name")
+                                Spacer(Modifier.height(12.dp))
+                                GlassTextField(email, { email = it }, "Email", KeyboardType.Email)
+                                Spacer(Modifier.height(12.dp))
+                                PasswordField(password, { password = it }, pwVisible) { pwVisible = !pwVisible }
+                                Spacer(Modifier.height(12.dp))
+                                ChurchField(churchId, { churchId = it }, helperText = "Church name is case-insensitive")
+
+                                ErrorRow(state.error)
+                                Spacer(Modifier.height(16.dp))
+
+                                Button(
+                                    onClick  = { viewModel.registerAsMember(email, password, churchId, displayName) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled  = !state.isLoading && email.isNotBlank()
+                                            && password.isNotBlank() && churchId.isNotBlank()
+                                            && displayName.isNotBlank()
+                                ) {
+                                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp))
+                                    else Text("Join as Member", fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // ── New Church ────────────────────────────────────
+                            LoginMode.NEW_CHURCH -> {
+                                Text(
+                                    "Create a new church. You will be the admin.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.65f)
+                                )
+                                Spacer(Modifier.height(20.dp))
+
+                                ChurchField(
+                                    value      = churchId,
+                                    onChange   = { churchId = it },
+                                    label      = "Church Name",
+                                    helperText = "Must be unique · stored in lowercase"
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                GlassTextField(displayName, { displayName = it }, "Your Name")
+                                Spacer(Modifier.height(12.dp))
+                                GlassTextField(email, { email = it }, "Email", KeyboardType.Email)
+                                Spacer(Modifier.height(12.dp))
+                                PasswordField(password, { password = it }, pwVisible) { pwVisible = !pwVisible }
+
+                                ErrorRow(state.error)
+                                Spacer(Modifier.height(16.dp))
+
+                                Button(
+                                    onClick  = { viewModel.registerNewChurch(email, password, churchId, displayName) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled  = !state.isLoading && email.isNotBlank()
+                                            && password.isNotBlank() && churchId.isNotBlank()
+                                            && displayName.isNotBlank()
+                                ) {
+                                    if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp))
+                                    else Text("Create Church", fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "You will automatically become the admin.",
+                                    style     = MaterialTheme.typography.labelSmall,
+                                    color     = Color.White.copy(alpha = 0.50f),
+                                    textAlign = TextAlign.Center,
+                                    modifier  = Modifier.fillMaxWidth()
                                 )
                             }
                         }
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    // ── Error ─────────────────────────────────────────────────
-                    state.error?.let {
-                        Text(
-                            it,
-                            color  = Color(0xFFFF6B6B),
-                            style  = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                    // ── Login / Register button ───────────────────────────────
-                    Button(
-                        onClick = {
-                            if (isRegisterMode) viewModel.register(email, password, churchId, role)
-                            else                viewModel.login(email, password, churchId)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled  = !state.isLoading &&
-                                   email.isNotBlank() &&
-                                   password.isNotBlank() &&
-                                   churchId.isNotBlank()
-                    ) {
-                        if (state.isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                        else Text(if (isRegisterMode) "Register" else "Login")
                     }
                 }
             }
-
-            Spacer(Modifier.height(12.dp))
-            TextButton(onClick = { isRegisterMode = !isRegisterMode }) {
-                Text(
-                    if (isRegisterMode) "Already have an account? Sign In"
-                    else                "No account? Register",
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-            }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(32.dp))
         }
     }
 }
 
-// ── Reusable glass-style text field ──────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable components
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ErrorRow(error: String?) {
+    if (error != null) {
+        Spacer(Modifier.height(8.dp))
+        Text(error, color = Color(0xFFFF6B6B),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun RememberMeRow(checked: Boolean, onChange: (Boolean) -> Unit, onForget: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = checked, onCheckedChange = onChange)
+            Text("Remember me", color = Color.White, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (checked) {
+            TextButton(onClick = onForget) {
+                Text("Forget saved", style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFFFF6B6B))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChurchField(
+    value:      String,
+    onChange:   (String) -> Unit,
+    label:      String = "Church Name",
+    helperText: String = ""
+) {
+    GlassTextField(
+        value         = value,
+        onValueChange = { onChange(it.lowercase()) },
+        label         = label,
+        trailingIcon  = { Icon(Icons.Default.Church, null, tint = Color.White.copy(alpha = 0.7f)) }
+    )
+    if (helperText.isNotEmpty()) {
+        Spacer(Modifier.height(3.dp))
+        Text(helperText, style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.50f), modifier = Modifier.padding(start = 4.dp))
+    }
+}
+
+@Composable
+private fun PasswordField(value: String, onChange: (String) -> Unit, visible: Boolean, onToggle: () -> Unit) {
+    GlassTextField(
+        value                = value,
+        onValueChange        = onChange,
+        label                = "Password",
+        keyboardType         = KeyboardType.Password,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon         = {
+            IconButton(onClick = onToggle) {
+                Icon(
+                    if (visible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (visible) "Hide" else "Show",
+                    tint = Color.White.copy(alpha = 0.8f)
+                )
+            }
+        }
+    )
+}
+
 @Composable
 private fun GlassTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    keyboardType: KeyboardType = KeyboardType.Text,
+    value:                String,
+    onValueChange:        (String) -> Unit,
+    label:                String,
+    keyboardType:         KeyboardType         = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    trailingIcon: @Composable (() -> Unit)? = null
+    trailingIcon:         @Composable (() -> Unit)? = null
 ) {
-    val colors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor        = Color.White,
-        unfocusedTextColor      = Color.White,
-        focusedLabelColor       = Color.White.copy(alpha = 0.9f),
-        unfocusedLabelColor     = Color.White.copy(alpha = 0.65f),
-        focusedBorderColor      = Color.White.copy(alpha = 0.8f),
-        unfocusedBorderColor    = Color.White.copy(alpha = 0.35f),
-        cursorColor             = Color.White,
-        focusedContainerColor   = Color.White.copy(alpha = 0.08f),
-        unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
-    )
-    androidx.compose.material3.OutlinedTextField(
+    OutlinedTextField(
         value                = value,
         onValueChange        = onValueChange,
         label                = { Text(label) },
@@ -325,6 +405,16 @@ private fun GlassTextField(
         singleLine           = true,
         modifier             = Modifier.fillMaxWidth(),
         shape                = RoundedCornerShape(14.dp),
-        colors               = colors
+        colors               = OutlinedTextFieldDefaults.colors(
+            focusedTextColor        = Color.White,
+            unfocusedTextColor      = Color.White,
+            focusedLabelColor       = Color.White.copy(alpha = 0.9f),
+            unfocusedLabelColor     = Color.White.copy(alpha = 0.65f),
+            focusedBorderColor      = Color.White.copy(alpha = 0.8f),
+            unfocusedBorderColor    = Color.White.copy(alpha = 0.35f),
+            cursorColor             = Color.White,
+            focusedContainerColor   = Color.White.copy(alpha = 0.08f),
+            unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+        )
     )
 }

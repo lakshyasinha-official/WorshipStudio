@@ -51,6 +51,17 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
 
+    // QR code generation (ZXing core — no UI, just the encoder)
+    implementation("com.google.zxing:core:3.5.3")
+
+    // CameraX — for QR scanning
+    implementation("androidx.camera:camera-camera2:1.4.1")
+    implementation("androidx.camera:camera-lifecycle:1.4.1")
+    implementation("androidx.camera:camera-view:1.4.1")
+
+    // MLKit barcode scanning
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth.ktx)

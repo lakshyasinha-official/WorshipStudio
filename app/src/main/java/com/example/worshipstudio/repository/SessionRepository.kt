@@ -12,91 +12,109 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 class SessionRepository {
-    private val db       = FirebaseDatabase.getInstance()
-    private val sessions = db.getReference("sessions")
+    private val db        = FirebaseDatabase.getInstance()
+    private val sessions  = db.getReference("sessions")
+    private val roomCodes = db.getReference("roomCodes")  // roomCode → sessionId index
 
-    // ── Create session ────────────────────────────────────────────────────────
-    suspend fun createSession(setId: String, adminId: String): Result<String> {
-        return try {
-            val sessionId = UUID.randomUUID().toString().take(8).uppercase()
-            val session   = Session(
-                sessionId        = sessionId,
-                currentSongIndex = 0,
-                setId            = setId,
-                adminId          = adminId
-            )
-            sessions.child(sessionId).setValue(session).await()
-            Result.success(sessionId)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    // ── Create session (returns sessionId + 4-digit roomCode) ─────────────────
+    suspend fun createSession(
+        setId:    String,
+        adminId:  String,
+        churchId: String
+    ): Result<Pair<String, String>> = try {
+        val sessionId = UUID.randomUUID().toString().take(8).uppercase()
+        val roomCode  = (1000..9999).random().toString()
+        val session   = Session(
+            sessionId        = sessionId,
+            roomCode         = roomCode,
+            setId            = setId,
+            adminId          = adminId,
+            churchId         = churchId,
+            currentSongIndex = 0,
+            isActive         = true
+        )
+        sessions.child(sessionId).setValue(session).await()
+        // Write reverse index: roomCode → sessionId
+        roomCodes.child(roomCode).setValue(sessionId).await()
+        Result.success(Pair(sessionId, roomCode))
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
-    // ── Observe session data (song index changes) ─────────────────────────────
+    // ── Look up sessionId by 4-digit room code ────────────────────────────────
+    suspend fun findByRoomCode(code: String): Result<String> = try {
+        val snap = roomCodes.child(code.trim()).get().await()
+        val id   = snap.getValue(String::class.java)
+            ?: return Result.failure(Exception("Room code \"$code\" not found or session has ended."))
+        Result.success(id)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // ── Observe active session for a church (auto-discovery) ──────────────────
+    fun observeChurchSession(churchId: String): Flow<Session?> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                val active = snap.children
+                    .mapNotNull { it.getValue(Session::class.java) }
+                    .firstOrNull { it.churchId == churchId && it.isActive }
+                trySend(active)
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        sessions.addValueEventListener(listener)
+        awaitClose { sessions.removeEventListener(listener) }
+    }
+
+    // ── Observe a specific session ─────────────────────────────────────────────
     fun observeSession(sessionId: String): Flow<Session?> = callbackFlow {
         val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.getValue(Session::class.java))
+            override fun onDataChange(snap: DataSnapshot) {
+                trySend(snap.getValue(Session::class.java))
             }
-            override fun onCancelled(error: DatabaseError) {
-                close(error.toException())
-            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }
         sessions.child(sessionId).addValueEventListener(listener)
         awaitClose { sessions.child(sessionId).removeEventListener(listener) }
     }
 
-    // ── Presence: register this device and auto-remove on disconnect ──────────
-    // Returns the unique participant key so the caller can remove it manually too.
+    // ── Presence ──────────────────────────────────────────────────────────────
     fun registerPresence(sessionId: String, label: String): String {
-        val participantKey = UUID.randomUUID().toString().take(8)
-        val ref = sessions
-            .child(sessionId)
-            .child("participants")
-            .child(participantKey)
+        val key = UUID.randomUUID().toString().take(8)
+        val ref = sessions.child(sessionId).child("participants").child(key)
         ref.setValue(label)
-        // Firebase will delete this node automatically if the connection drops
         ref.onDisconnect().removeValue()
-        return participantKey
+        return key
     }
 
-    fun removePresence(sessionId: String, participantKey: String) {
-        sessions.child(sessionId).child("participants").child(participantKey).removeValue()
+    fun removePresence(sessionId: String, key: String) {
+        sessions.child(sessionId).child("participants").child(key).removeValue()
     }
 
-    // ── Observe live participant count ────────────────────────────────────────
     fun observeParticipantCount(sessionId: String): Flow<Int> = callbackFlow {
         val listener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                trySend(snapshot.childrenCount.toInt())
-            }
+            override fun onDataChange(snap: DataSnapshot) { trySend(snap.childrenCount.toInt()) }
             override fun onCancelled(error: DatabaseError) { close(error.toException()) }
         }
-        sessions.child(sessionId).child("participants")
-            .addValueEventListener(listener)
-        awaitClose {
-            sessions.child(sessionId).child("participants")
-                .removeEventListener(listener)
-        }
+        sessions.child(sessionId).child("participants").addValueEventListener(listener)
+        awaitClose { sessions.child(sessionId).child("participants").removeEventListener(listener) }
     }
 
-    // ── Update song index (admin only) ────────────────────────────────────────
-    suspend fun updateSongIndex(sessionId: String, index: Int): Result<Unit> {
-        return try {
-            sessions.child(sessionId).child("currentSongIndex").setValue(index).await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    // ── Update active chord (admin callout) ───────────────────────────────────
+    fun updateActiveChord(sessionId: String, degree: String) {
+        sessions.child(sessionId).child("activeChordDegree").setValue(degree)
     }
 
-    // ── End session (deletes the node) ────────────────────────────────────────
-    suspend fun endSession(sessionId: String): Result<Unit> {
-        return try {
-            sessions.child(sessionId).removeValue().await()
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    // ── Update current song index (admin) ─────────────────────────────────────
+    suspend fun updateSongIndex(sessionId: String, index: Int): Result<Unit> = try {
+        sessions.child(sessionId).child("currentSongIndex").setValue(index).await()
+        Result.success(Unit)
+    } catch (e: Exception) { Result.failure(e) }
+
+    // ── End session — removes node + cleans up roomCode index ─────────────────
+    suspend fun endSession(sessionId: String, roomCode: String): Result<Unit> = try {
+        sessions.child(sessionId).removeValue().await()
+        if (roomCode.isNotEmpty()) roomCodes.child(roomCode).removeValue()
+        Result.success(Unit)
+    } catch (e: Exception) { Result.failure(e) }
 }
