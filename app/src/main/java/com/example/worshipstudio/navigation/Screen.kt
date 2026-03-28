@@ -1,6 +1,7 @@
 package com.example.worshipstudio.navigation
 
 sealed class Screen(val route: String) {
+    object Splash     : Screen("splash")
     object Login      : Screen("login")
     object SongList   : Screen("song_list")
     object AddSong    : Screen("add_song?songId={songId}") {

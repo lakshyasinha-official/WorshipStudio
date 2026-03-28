@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +43,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,11 +67,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.worshipstudio.data.model.SongPart
 import com.example.worshipstudio.engine.ChordEngine
+import com.example.worshipstudio.engine.LyricToken
 import com.example.worshipstudio.ui.components.ActiveChordColor
 import com.example.worshipstudio.ui.components.ChordLyricView
 import com.example.worshipstudio.utils.generateQrBitmap
 import com.example.worshipstudio.viewmodel.SessionViewModel
 import com.example.worshipstudio.viewmodel.SongViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private fun sessionPartColor(type: String): Color = when (type) {
@@ -91,6 +101,10 @@ fun LiveSessionScreen(
     val roomCode         = state.roomCode
     val activeChordDegree = session?.activeChordDegree ?: ""
 
+    // Member chord-change toast state
+    var toastVisible      by remember { mutableStateOf(false) }
+    var toastChordName    by remember { mutableStateOf("") }
+
     // Admin uses the song's root key; members pick their own
     val songKey     = song?.rootKey     ?: "C"
     val songQuality = song?.keyQuality  ?: "Major"
@@ -115,6 +129,16 @@ fun LiveSessionScreen(
         else         sessionViewModel.joinSession(sessionId, "")
     }
 
+    // Member toast: show briefly when admin calls a chord
+    LaunchedEffect(activeChordDegree) {
+        if (!isAdmin && activeChordDegree.isNotEmpty()) {
+            toastChordName = ChordEngine.resolveChord(activeChordDegree, displayKey, displayQuality)
+            toastVisible   = true
+            delay(2500L)
+            toastVisible   = false
+        }
+    }
+
     // Pulsing live dot
     val infiniteTransition = rememberInfiniteTransition(label = "livePulse")
     val pulse by infiniteTransition.animateFloat(
@@ -123,6 +147,26 @@ fun LiveSessionScreen(
         animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
         label         = "liveDot"
     )
+
+    // Chord map: ordered list of (degree, resolvedName) — first appearance wins
+    val chordMap: List<Pair<String, String>> = remember(song, displayKey, displayQuality) {
+        if (song == null) return@remember emptyList()
+        val lines = if (song.parts.isNotEmpty())
+            song.parts.flatMap { it.lyrics.lines() }
+        else
+            song.lyrics.lines()
+        val seen   = linkedSetOf<String>()
+        val result = mutableListOf<Pair<String, String>>()
+        lines.forEach { line ->
+            ChordEngine.parseLyrics(line, displayKey, displayQuality).forEach { token ->
+                if (token is LyricToken.Chord && token.degree !in seen) {
+                    seen.add(token.degree)
+                    result.add(token.degree to token.resolved)
+                }
+            }
+        }
+        result
+    }
 
     // QR bitmap memoized
     val qrBitmap = remember(roomCode) {
@@ -261,6 +305,14 @@ fun LiveSessionScreen(
                         ) { Text("Next ▶") }
                     }
                 }
+            } else if (chordMap.isNotEmpty()) {
+                BottomAppBar(tonalElevation = 4.dp) {
+                    ChordMapStrip(
+                        chordMap          = chordMap,
+                        activeChordDegree = activeChordDegree,
+                        pulse             = pulse
+                    )
+                }
             }
         }
     ) { padding ->
@@ -276,6 +328,7 @@ fun LiveSessionScreen(
             }
 
             else -> {
+                Box(Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
                         .padding(padding)
@@ -286,13 +339,13 @@ fun LiveSessionScreen(
                         AdminRoomCard(roomCode, qrBitmap, participantCount)
                     }
 
-                    // ── Active chord callout banner ────────────────────────────
-                    if (activeChordDegree.isNotEmpty()) {
+                    // ── Active chord callout banner — admin only ───────────────
+                    if (activeChordDegree.isNotEmpty() && isAdmin) {
                         ActiveChordBanner(
                             degree     = activeChordDegree,
                             key        = displayKey,
                             quality    = displayQuality,
-                            isAdmin    = isAdmin,
+                            isAdmin    = true,
                             onClear    = { sessionViewModel.setActiveChord("") },
                             pulse      = pulse
                         )
@@ -397,7 +450,42 @@ fun LiveSessionScreen(
                             contentAlignment = Alignment.Center
                         ) { Text("Waiting for song…", style = MaterialTheme.typography.bodyLarge) }
                     }
+                } // end Column
+
+                // ── Member chord toast ─────────────────────────────────────────
+                AnimatedVisibility(
+                    visible  = toastVisible && !isAdmin,
+                    enter    = slideInVertically { it / 2 } + fadeIn(tween(200)),
+                    exit     = fadeOut(tween(500)),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 80.dp)
+                ) {
+                    Surface(
+                        shape           = RoundedCornerShape(50.dp),
+                        color           = ActiveChordColor,
+                        shadowElevation = 10.dp
+                    ) {
+                        Row(
+                            modifier              = Modifier.padding(horizontal = 32.dp, vertical = 14.dp),
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Canvas(Modifier.size(8.dp)) {
+                                drawCircle(Color.White.copy(alpha = pulse * 0.6f + 0.4f))
+                            }
+                            Text(
+                                text       = toastChordName,
+                                color      = Color.White,
+                                fontSize   = 30.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                    }
                 }
+
+                } // end Box
             }
         }
     }
@@ -500,6 +588,48 @@ private fun AdminRoomCard(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         style    = MaterialTheme.typography.labelSmall,
                         color    = Color(0xFF1B5E20), fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+// ── Member chord map strip ─────────────────────────────────────────────────────
+@Composable
+private fun ChordMapStrip(
+    chordMap:          List<Pair<String, String>>,
+    activeChordDegree: String,
+    pulse:             Float
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(
+            "Chord map",
+            style  = MaterialTheme.typography.labelSmall,
+            color  = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(6.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(chordMap) { (degree, resolved) ->
+                val isActive = degree == activeChordDegree
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = when {
+                        isActive -> ActiveChordColor.copy(alpha = 0.12f + pulse * 0.10f)
+                        else     -> MaterialTheme.colorScheme.surfaceVariant
+                    }
+                ) {
+                    Text(
+                        text       = resolved,
+                        modifier   = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                        fontSize   = if (isActive) 18.sp else 15.sp,
+                        color      = if (isActive) ActiveChordColor
+                                     else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

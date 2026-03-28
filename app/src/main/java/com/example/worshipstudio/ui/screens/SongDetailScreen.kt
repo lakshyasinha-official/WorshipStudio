@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.Subject
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import com.example.worshipstudio.data.model.SongPart
 import com.example.worshipstudio.engine.ChordEngine
 import com.example.worshipstudio.ui.components.ChordLyricView
+import com.example.worshipstudio.viewmodel.SessionViewModel
 import com.example.worshipstudio.viewmodel.SongViewModel
 import com.example.worshipstudio.viewmodel.TagViewModel
 import kotlinx.coroutines.launch
@@ -78,12 +80,17 @@ private fun partColor(type: String): Color = when (type) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongDetailScreen(
-    songId:        String,
-    songViewModel: SongViewModel,
-    tagViewModel:  TagViewModel,
-    isAdmin:       Boolean = false,
-    onBack:        () -> Unit,
-    onEdit:        () -> Unit
+    songId:          String,
+    songViewModel:   SongViewModel,
+    tagViewModel:    TagViewModel,
+    isAdmin:         Boolean = false,
+    churchId:        String = "",
+    adminId:         String = "",
+    adminName:       String = "",
+    sessionViewModel: SessionViewModel? = null,
+    onBack:          () -> Unit,
+    onEdit:          () -> Unit,
+    onPushSession:   ((sessionId: String) -> Unit)? = null
 ) {
     val state         by songViewModel.detailState.collectAsState()
     val tagState      by tagViewModel.state.collectAsState()
@@ -91,6 +98,7 @@ fun SongDetailScreen(
     val scope         = rememberCoroutineScope()
     var showKeyPicker by remember { mutableStateOf(false) }
     var simplified    by rememberSaveable { mutableStateOf(false) }
+    var isPushing     by remember { mutableStateOf(false) }
 
     LaunchedEffect(songId) { songViewModel.loadSong(songId) }
 
@@ -219,6 +227,34 @@ fun SongDetailScreen(
                         }
                     }
                     if (isAdmin) {
+                        // Push Song Now — instantly starts a live session for all members
+                        if (onPushSession != null && sessionViewModel != null) {
+                            IconButton(
+                                onClick = {
+                                    val song = state.song ?: return@IconButton
+                                    isPushing = true
+                                    sessionViewModel.createPushSession(
+                                        songId    = song.id,
+                                        songName  = song.name,
+                                        adminId   = adminId,
+                                        adminName = adminName,
+                                        churchId  = churchId,
+                                        onSuccess = { sessionId ->
+                                            isPushing = false
+                                            onPushSession(sessionId)
+                                        },
+                                        onError = { isPushing = false }
+                                    )
+                                },
+                                enabled = !isPushing
+                            ) {
+                                if (isPushing)
+                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                                else
+                                    Icon(Icons.Default.Bolt, "Push song now",
+                                        tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                         IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit") }
                     }
                 }

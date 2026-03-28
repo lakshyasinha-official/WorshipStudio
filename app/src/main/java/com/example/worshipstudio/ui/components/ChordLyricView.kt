@@ -1,5 +1,7 @@
 package com.example.worshipstudio.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -11,10 +13,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -113,22 +117,30 @@ private fun ChordLyricLine(
                     val chordColor = if (isActive) ActiveChordColor
                                      else MaterialTheme.colorScheme.primary
 
-                    // Chord cell — highlighted if active, clickable if admin
+                    // Spring-pop when chord becomes active
+                    val chordScale by animateFloatAsState(
+                        targetValue  = if (isActive) 1.2f else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.3f, stiffness = 600f),
+                        label        = "scale"
+                    )
+
+                    // Chord cell — highlighted if active, tappable pill if admin
                     val chordMod = Modifier
+                        .clip(RoundedCornerShape(6.dp))
                         .then(
-                            if (isActive)
-                                Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(ActiveChordColor.copy(alpha = 0.15f))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
-                            else Modifier
+                            when {
+                                isActive      -> Modifier
+                                    .background(ActiveChordColor.copy(alpha = 0.18f))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                onChordTap != null -> Modifier
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                                else          -> Modifier
+                            }
                         )
                         .then(
                             if (onChordTap != null)
-                                Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { onChordTap(degree) }
-                                    .padding(horizontal = if (isActive) 0.dp else 2.dp)
+                                Modifier.clickable { onChordTap(degree) }
                             else Modifier
                         )
 
@@ -138,7 +150,7 @@ private fun ChordLyricLine(
                         fontSize   = if (isActive) (textSize).sp else (textSize - 2).sp,
                         fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Bold,
                         lineHeight = (textSize + 2).sp,
-                        modifier   = chordMod
+                        modifier   = chordMod.scale(chordScale)
                     )
                 } else {
                     // Placeholder to keep lyric rows aligned

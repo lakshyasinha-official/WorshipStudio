@@ -1,5 +1,6 @@
 package com.example.worshipstudio.repository
 
+import com.example.worshipstudio.data.model.ChurchPush
 import com.example.worshipstudio.data.model.Session
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -12,9 +13,10 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 class SessionRepository {
-    private val db        = FirebaseDatabase.getInstance()
-    private val sessions  = db.getReference("sessions")
-    private val roomCodes = db.getReference("roomCodes")  // roomCode → sessionId index
+    private val db           = FirebaseDatabase.getInstance()
+    private val sessions     = db.getReference("sessions")
+    private val roomCodes    = db.getReference("roomCodes")   // roomCode → sessionId index
+    private val churchPushes = db.getReference("churchPush")  // churchId → active push
 
     // ── Create session (returns sessionId + 4-digit roomCode) ─────────────────
     suspend fun createSession(
@@ -110,6 +112,56 @@ class SessionRepository {
         sessions.child(sessionId).child("currentSongIndex").setValue(index).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
+
+    // ── Create push session (single song, no set) ─────────────────────────────
+    suspend fun createPushSession(
+        songId:    String,
+        songName:  String,
+        adminId:   String,
+        adminName: String,
+        churchId:  String
+    ): Result<String> = try {
+        val sessionId = UUID.randomUUID().toString().take(8).uppercase()
+        val session = Session(
+            sessionId        = sessionId,
+            roomCode         = "",
+            setId            = "",
+            adminId          = adminId,
+            churchId         = churchId,
+            currentSongIndex = 0,
+            isActive         = true,
+            pushSongId       = songId
+        )
+        sessions.child(sessionId).setValue(session).await()
+        // Broadcast to all church members
+        val push = ChurchPush(
+            sessionId = sessionId,
+            songName  = songName,
+            adminName = adminName,
+            timestamp = System.currentTimeMillis()
+        )
+        churchPushes.child(churchId).setValue(push).await()
+        Result.success(sessionId)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // ── Observe church push (members watch this for instant join pop-up) ──────
+    fun observeChurchPush(churchId: String): Flow<ChurchPush?> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                trySend(snap.getValue(ChurchPush::class.java))
+            }
+            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+        }
+        churchPushes.child(churchId).addValueEventListener(listener)
+        awaitClose { churchPushes.child(churchId).removeEventListener(listener) }
+    }
+
+    // ── Clear church push (admin clears when session ends) ────────────────────
+    fun clearChurchPush(churchId: String) {
+        churchPushes.child(churchId).removeValue()
+    }
 
     // ── End session — removes node + cleans up roomCode index ─────────────────
     suspend fun endSession(sessionId: String, roomCode: String): Result<Unit> = try {

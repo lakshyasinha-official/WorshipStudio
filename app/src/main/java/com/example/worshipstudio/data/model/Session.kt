@@ -12,5 +12,7 @@ data class Session(
     val currentSongIndex:   Int     = 0,
     val isActive:           Boolean = true,
     /** Degree currently called out by admin (e.g. "IV", "V"). Empty = none. */
-    val activeChordDegree:  String  = ""
+    val activeChordDegree:  String  = "",
+    /** Set when this is a push session with a single song (no set). Empty = regular session. */
+    val pushSongId:         String  = ""
 )

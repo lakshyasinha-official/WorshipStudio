@@ -2,6 +2,7 @@ package com.example.worshipstudio.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.worshipstudio.data.model.ChurchPush
 import com.example.worshipstudio.data.model.Session
 import com.example.worshipstudio.data.model.Song
 import com.example.worshipstudio.data.model.WorshipSet
@@ -24,7 +25,9 @@ data class SessionState(
     val participantCount:   Int       = 0,
     val participantKey:     String    = "",
     /** Church-wide active session found via auto-discovery (for banner). */
-    val churchActiveSession: Session? = null
+    val churchActiveSession: Session? = null,
+    /** Latest push notification broadcast by admin (null = none active). */
+    val churchPush: ChurchPush? = null
 )
 
 class SessionViewModel : ViewModel() {
@@ -107,6 +110,55 @@ class SessionViewModel : ViewModel() {
         }
     }
 
+    // ── Admin: create a push session (single song, instant join for members) ──
+    fun createPushSession(
+        songId:    String,
+        songName:  String,
+        adminId:   String,
+        adminName: String,
+        churchId:  String,
+        onSuccess: (String) -> Unit,
+        onError:   (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, error = null)
+            val result = sessionRepo.createPushSession(songId, songName, adminId, adminName, churchId)
+            result.onSuccess { sessionId ->
+                val key = sessionRepo.registerPresence(sessionId, "admin")
+                _state.value = _state.value.copy(
+                    sessionId      = sessionId,
+                    roomCode       = "",
+                    isAdmin        = true,
+                    isLoading      = false,
+                    participantKey = key
+                )
+                observeSession(sessionId, null)
+                observeParticipantCount(sessionId)
+                onSuccess(sessionId)
+            }
+            result.onFailure {
+                _state.value = _state.value.copy(isLoading = false, error = it.message)
+                onError(it.message ?: "Failed to push song")
+            }
+        }
+    }
+
+    // ── Observe church push notifications (members listen for instant join) ───
+    fun observeChurchPush(churchId: String) {
+        if (churchId.isEmpty()) return
+        viewModelScope.launch {
+            sessionRepo.observeChurchPush(churchId).collect { push ->
+                _state.value = _state.value.copy(churchPush = push)
+            }
+        }
+    }
+
+    // ── Dismiss push banner (member tapped Dismiss, or admin ended session) ───
+    fun dismissChurchPush(churchId: String) {
+        _state.value = _state.value.copy(churchPush = null)
+        // Only the admin should clear the node; members just hide locally
+    }
+
     // ── Auto-discovery: watch for any active session in this church ───────────
     fun observeChurchSession(churchId: String) {
         if (churchId.isEmpty()) return
@@ -131,6 +183,19 @@ class SessionViewModel : ViewModel() {
                     }
                     return@collect
                 }
+                // Push session: load the single song directly, no set needed
+                if (session.pushSongId.isNotEmpty()) {
+                    val song = songRepo.getSong(session.pushSongId)
+                    _state.value = _state.value.copy(
+                        session     = session,
+                        roomCode    = session.roomCode,
+                        set         = null,
+                        currentSong = song,
+                        isLoading   = false
+                    )
+                    return@collect
+                }
+                // Regular session: load via set
                 val currentSetId = knownSetId ?: session.setId
                 val set    = _state.value.set ?: setRepo.getSet(currentSetId)
                 val songId = set?.songs?.getOrNull(session.currentSongIndex)
@@ -179,13 +244,17 @@ class SessionViewModel : ViewModel() {
     }
 
     // ── End / leave ───────────────────────────────────────────────────────────
-    fun endSession() {
+    fun endSession(churchId: String = "") {
         viewModelScope.launch {
             val s = _state.value
             if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty())
                 sessionRepo.removePresence(s.sessionId, s.participantKey)
-            if (s.isAdmin && s.sessionId.isNotEmpty())
+            if (s.isAdmin && s.sessionId.isNotEmpty()) {
                 sessionRepo.endSession(s.sessionId, s.roomCode)
+                // Clear push node if this was a push session
+                if (s.session?.pushSongId?.isNotEmpty() == true && churchId.isNotEmpty())
+                    sessionRepo.clearChurchPush(churchId)
+            }
             _state.value = SessionState()
         }
     }

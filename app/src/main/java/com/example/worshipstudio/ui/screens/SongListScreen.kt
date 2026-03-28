@@ -101,6 +101,7 @@ import com.example.worshipstudio.data.model.WorshipSet
 import com.example.worshipstudio.utils.AppTheme
 import com.example.worshipstudio.utils.PdfExporter
 import com.example.worshipstudio.viewmodel.AuthViewModel
+import com.example.worshipstudio.viewmodel.SessionViewModel
 import com.example.worshipstudio.viewmodel.SetViewModel
 import com.example.worshipstudio.viewmodel.SongViewModel
 import com.example.worshipstudio.viewmodel.TagViewModel
@@ -114,23 +115,31 @@ enum class SortOrder(val label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongListScreen(
-    authViewModel: AuthViewModel,
-    songViewModel: SongViewModel,
-    setViewModel:  SetViewModel,
-    tagViewModel:  TagViewModel,
-    currentTheme:  AppTheme = AppTheme.NIGHTFALL,
-    onSongClick:   (String) -> Unit,
-    onAddSong:     () -> Unit,
-    onSetClick:    (String) -> Unit,
-    onCreateSet:   () -> Unit,
-    onSettings:    () -> Unit,
-    onLogout:      () -> Unit
+    authViewModel:    AuthViewModel,
+    songViewModel:    SongViewModel,
+    setViewModel:     SetViewModel,
+    tagViewModel:     TagViewModel,
+    sessionViewModel: SessionViewModel? = null,
+    currentTheme:     AppTheme = AppTheme.NIGHTFALL,
+    onSongClick:      (String) -> Unit,
+    onAddSong:        () -> Unit,
+    onSetClick:       (String) -> Unit,
+    onCreateSet:      () -> Unit,
+    onSettings:       () -> Unit,
+    onJoinPushSession: ((String) -> Unit)? = null,
+    onLogout:         () -> Unit
 ) {
     val context       = LocalContext.current
     val authState     by authViewModel.state.collectAsState()
     val songListState by songViewModel.listState.collectAsState()
     val setListState  by setViewModel.listState.collectAsState()
     val tagState      by tagViewModel.state.collectAsState()
+    val pushFlow      = remember(sessionViewModel) {
+        sessionViewModel?.state
+            ?: kotlinx.coroutines.flow.MutableStateFlow(com.example.worshipstudio.viewmodel.SessionState())
+    }
+    val pushState     by pushFlow.collectAsState()
+    val churchPush    = pushState.churchPush
     var selectedTab   by remember { mutableIntStateOf(0) }
     var searchQuery   by remember { mutableStateOf("") }
     var drawerOpen    by remember { mutableStateOf(false) }
@@ -467,6 +476,62 @@ fun SongListScreen(
                     onSettings   = { drawerOpen = false; onSettings() },
                     onLogout     = { drawerOpen = false; onLogout() }
                 )
+            }
+        }
+
+        // ── Push notification banner (members only) ────────────────────────────
+        if (churchPush != null && !isAdmin && onJoinPushSession != null) {
+            val push = churchPush!!
+            // Auto-dismiss after 60 seconds
+            LaunchedEffect(push.sessionId) {
+                kotlinx.coroutines.delay(60_000)
+                sessionViewModel?.dismissChurchPush(authState.churchId)
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                Surface(
+                    shape     = RoundedCornerShape(20.dp),
+                    color     = MaterialTheme.colorScheme.primaryContainer,
+                    shadowElevation = 8.dp,
+                    modifier  = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.foundation.Canvas(Modifier.size(8.dp)) {
+                                drawCircle(androidx.compose.ui.graphics.Color(0xFF4CAF50))
+                            }
+                            Text(
+                                text  = push.adminName.ifEmpty { "Admin" } + " started a session",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text       = push.songName,
+                            style      = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color      = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            androidx.compose.material3.Button(
+                                onClick  = { onJoinPushSession(push.sessionId) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Join Now") }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick  = { sessionViewModel?.dismissChurchPush(authState.churchId) },
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Dismiss") }
+                        }
+                    }
+                }
             }
         }
     }
