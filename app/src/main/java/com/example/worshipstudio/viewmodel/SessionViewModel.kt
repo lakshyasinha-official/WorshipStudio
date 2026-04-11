@@ -27,7 +27,9 @@ data class SessionState(
     /** Church-wide active session found via auto-discovery (for banner). */
     val churchActiveSession: Session? = null,
     /** Latest push notification broadcast by admin (null = none active). */
-    val churchPush: ChurchPush? = null
+    val churchPush: ChurchPush? = null,
+    /** Stored churchId so endSession can clear the church session pointer. */
+    val churchId:           String    = ""
 )
 
 class SessionViewModel : ViewModel() {
@@ -64,7 +66,8 @@ class SessionViewModel : ViewModel() {
                     roomCode       = roomCode,
                     isAdmin        = true,
                     isLoading      = false,
-                    participantKey = key
+                    participantKey = key,
+                    churchId       = churchId
                 )
                 observeSession(sessionId, setId)
                 observeParticipantCount(sessionId)
@@ -112,17 +115,27 @@ class SessionViewModel : ViewModel() {
 
     // ── Admin: create a push session (single song, instant join for members) ──
     fun createPushSession(
-        songId:    String,
-        songName:  String,
-        adminId:   String,
-        adminName: String,
-        churchId:  String,
-        onSuccess: (String) -> Unit,
-        onError:   (String) -> Unit
+        songId:      String,
+        songName:    String,
+        adminId:     String,
+        adminName:   String,
+        churchId:    String,
+        adminKey:    String = "",
+        adminQuality: String = "",
+        onSuccess:   (String) -> Unit,
+        onError:     (String) -> Unit
     ) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-            val result = sessionRepo.createPushSession(songId, songName, adminId, adminName, churchId)
+            val result = sessionRepo.createPushSession(
+                songId      = songId,
+                songName    = songName,
+                adminId     = adminId,
+                adminName   = adminName,
+                churchId    = churchId,
+                adminKey    = adminKey,
+                adminQuality = adminQuality
+            )
             result.onSuccess { sessionId ->
                 val key = sessionRepo.registerPresence(sessionId, "admin")
                 _state.value = _state.value.copy(
@@ -130,7 +143,8 @@ class SessionViewModel : ViewModel() {
                     roomCode       = "",
                     isAdmin        = true,
                     isLoading      = false,
-                    participantKey = key
+                    participantKey = key,
+                    churchId       = churchId
                 )
                 observeSession(sessionId, null)
                 observeParticipantCount(sessionId)
@@ -174,7 +188,7 @@ class SessionViewModel : ViewModel() {
         viewModelScope.launch {
             sessionRepo.observeSession(sessionId).collect { session ->
                 if (session == null) {
-                    // Session was deleted by admin
+                    // Session was deleted by admin — kick non-admins out
                     if (!_state.value.isAdmin) {
                         _state.value = _state.value.copy(
                             session = null,
@@ -227,6 +241,12 @@ class SessionViewModel : ViewModel() {
         sessionRepo.updateActiveChord(s.sessionId, next)
     }
 
+    // ── Admin key change (broadcast to all members) ───────────────────────────
+    fun setAdminKey(key: String, quality: String) {
+        val s = _state.value; if (!s.isAdmin) return
+        sessionRepo.updateAdminKey(s.sessionId, key, quality)
+    }
+
     // ── Song navigation (admin only) ──────────────────────────────────────────
     fun nextSong() {
         val s = _state.value; if (!s.isAdmin) return
@@ -247,13 +267,14 @@ class SessionViewModel : ViewModel() {
     fun endSession(churchId: String = "") {
         viewModelScope.launch {
             val s = _state.value
+            val resolvedChurchId = churchId.ifEmpty { s.churchId }
             if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty())
                 sessionRepo.removePresence(s.sessionId, s.participantKey)
             if (s.isAdmin && s.sessionId.isNotEmpty()) {
-                sessionRepo.endSession(s.sessionId, s.roomCode)
+                sessionRepo.endSession(s.sessionId, s.roomCode, resolvedChurchId)
                 // Clear push node if this was a push session
-                if (s.session?.pushSongId?.isNotEmpty() == true && churchId.isNotEmpty())
-                    sessionRepo.clearChurchPush(churchId)
+                if (s.session?.pushSongId?.isNotEmpty() == true && resolvedChurchId.isNotEmpty())
+                    sessionRepo.clearChurchPush(resolvedChurchId)
             }
             _state.value = SessionState()
         }

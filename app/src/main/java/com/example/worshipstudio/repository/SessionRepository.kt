@@ -13,10 +13,26 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 class SessionRepository {
-    private val db           = FirebaseDatabase.getInstance()
-    private val sessions     = db.getReference("sessions")
-    private val roomCodes    = db.getReference("roomCodes")   // roomCode → sessionId index
-    private val churchPushes = db.getReference("churchPush")  // churchId → active push
+    private val db             = FirebaseDatabase.getInstance()
+    private val sessions       = db.getReference("sessions")
+    private val roomCodes      = db.getReference("roomCodes")      // roomCode → sessionId index
+    private val churchPushes   = db.getReference("churchPush")     // churchId → active push
+    private val churchSessions = db.getReference("churchSessions") // churchId → active sessionId
+
+    // ── End any existing church session before creating a new one ─────────────
+    private suspend fun endExistingChurchSession(churchId: String) {
+        try {
+            val snap = churchSessions.child(churchId).get().await()
+            val existingId = snap.getValue(String::class.java) ?: return
+            // Load the old session to get its roomCode for cleanup
+            val sessionSnap = sessions.child(existingId).get().await()
+            val oldSession = sessionSnap.getValue(Session::class.java)
+            // Delete the old session node (this kicks all members out automatically)
+            sessions.child(existingId).removeValue().await()
+            if (oldSession?.roomCode?.isNotEmpty() == true)
+                roomCodes.child(oldSession.roomCode).removeValue()
+        } catch (_: Exception) { /* best-effort */ }
+    }
 
     // ── Create session (returns sessionId + 4-digit roomCode) ─────────────────
     suspend fun createSession(
@@ -24,6 +40,8 @@ class SessionRepository {
         adminId:  String,
         churchId: String
     ): Result<Pair<String, String>> = try {
+        // Enforce single active session per church
+        endExistingChurchSession(churchId)
         val sessionId = UUID.randomUUID().toString().take(8).uppercase()
         val roomCode  = (1000..9999).random().toString()
         val session   = Session(
@@ -38,6 +56,8 @@ class SessionRepository {
         sessions.child(sessionId).setValue(session).await()
         // Write reverse index: roomCode → sessionId
         roomCodes.child(roomCode).setValue(sessionId).await()
+        // Register as active church session
+        churchSessions.child(churchId).setValue(sessionId).await()
         Result.success(Pair(sessionId, roomCode))
     } catch (e: Exception) {
         Result.failure(e)
@@ -107,6 +127,12 @@ class SessionRepository {
         sessions.child(sessionId).child("activeChordDegree").setValue(degree)
     }
 
+    // ── Update admin key (broadcast to all members) ───────────────────────────
+    fun updateAdminKey(sessionId: String, key: String, quality: String) {
+        sessions.child(sessionId).child("adminKey").setValue(key)
+        sessions.child(sessionId).child("adminQuality").setValue(quality)
+    }
+
     // ── Update current song index (admin) ─────────────────────────────────────
     suspend fun updateSongIndex(sessionId: String, index: Int): Result<Unit> = try {
         sessions.child(sessionId).child("currentSongIndex").setValue(index).await()
@@ -115,12 +141,16 @@ class SessionRepository {
 
     // ── Create push session (single song, no set) ─────────────────────────────
     suspend fun createPushSession(
-        songId:    String,
-        songName:  String,
-        adminId:   String,
-        adminName: String,
-        churchId:  String
+        songId:      String,
+        songName:    String,
+        adminId:     String,
+        adminName:   String,
+        churchId:    String,
+        adminKey:    String = "",
+        adminQuality: String = ""
     ): Result<String> = try {
+        // Enforce single active session per church
+        endExistingChurchSession(churchId)
         val sessionId = UUID.randomUUID().toString().take(8).uppercase()
         val session = Session(
             sessionId        = sessionId,
@@ -130,9 +160,13 @@ class SessionRepository {
             churchId         = churchId,
             currentSongIndex = 0,
             isActive         = true,
-            pushSongId       = songId
+            pushSongId       = songId,
+            adminKey         = adminKey,
+            adminQuality     = adminQuality
         )
         sessions.child(sessionId).setValue(session).await()
+        // Register as active church session
+        churchSessions.child(churchId).setValue(sessionId).await()
         // Broadcast to all church members
         val push = ChurchPush(
             sessionId = sessionId,
@@ -163,10 +197,16 @@ class SessionRepository {
         churchPushes.child(churchId).removeValue()
     }
 
+    // ── Clear church session pointer ──────────────────────────────────────────
+    fun clearChurchSession(churchId: String) {
+        churchSessions.child(churchId).removeValue()
+    }
+
     // ── End session — removes node + cleans up roomCode index ─────────────────
-    suspend fun endSession(sessionId: String, roomCode: String): Result<Unit> = try {
+    suspend fun endSession(sessionId: String, roomCode: String, churchId: String = ""): Result<Unit> = try {
         sessions.child(sessionId).removeValue().await()
         if (roomCode.isNotEmpty()) roomCodes.child(roomCode).removeValue()
+        if (churchId.isNotEmpty()) clearChurchSession(churchId)
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 }

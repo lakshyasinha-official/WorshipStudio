@@ -51,14 +51,30 @@ class SongViewModel : ViewModel() {
 
     fun searchSongs(churchId: String, query: String) {
         viewModelScope.launch {
-            _listState.value = _listState.value.copy(isLoading = true)
-            val songs = if (query.isBlank()) repo.getSongs(churchId)
-                        else repo.searchSongs(churchId, query)
-            // When searching, update allSongs so tag filter applies on top
+            // Ensure full song list is loaded before filtering
+            val base = if (_listState.value.allSongs.isEmpty()) {
+                _listState.value = _listState.value.copy(isLoading = true)
+                val loaded = repo.getSongs(churchId)
+                _listState.value = _listState.value.copy(allSongs = loaded, isLoading = false)
+                loaded
+            } else {
+                _listState.value.allSongs
+            }
+            // Client-side filtering: try regex first, fall back to plain contains
+            val filtered = if (query.isBlank()) {
+                base
+            } else {
+                val q = query.trim()
+                try {
+                    val regex = Regex(q, RegexOption.IGNORE_CASE)
+                    base.filter { regex.containsMatchIn(it.name) }
+                } catch (_: Exception) {
+                    // Not valid regex — use case-insensitive contains on full name
+                    base.filter { it.name.contains(q, ignoreCase = true) }
+                }
+            }
             _listState.value = _listState.value.copy(
-                allSongs  = songs,
-                songs     = applyTagFilter(songs, _listState.value.activeTagId),
-                isLoading = false
+                songs = applyTagFilter(filtered, _listState.value.activeTagId)
             )
         }
     }
