@@ -1,10 +1,15 @@
 package com.example.worshipstudio.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -43,12 +49,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -94,39 +94,64 @@ fun LiveSessionScreen(
     songViewModel:    SongViewModel,
     onBack:           () -> Unit
 ) {
-    val state            by sessionViewModel.state.collectAsState()
-    val song             = state.currentSong
-    val session          = state.session
-    val participantCount = state.participantCount
-    val roomCode         = state.roomCode
+    val state             by sessionViewModel.state.collectAsState()
+    val song              = state.currentSong
+    val session           = state.session
+    val participantCount  = state.participantCount
+    val roomCode          = state.roomCode
     val activeChordDegree = session?.activeChordDegree ?: ""
 
     // Member chord-change toast state
-    var toastVisible      by remember { mutableStateOf(false) }
-    var toastChordName    by remember { mutableStateOf("") }
+    var toastVisible   by remember { mutableStateOf(false) }
+    var toastChordName by remember { mutableStateOf("") }
 
-    // Admin uses the song's root key; members pick their own
-    val songKey     = song?.rootKey     ?: "C"
-    val songQuality = song?.keyQuality  ?: "Major"
+    // Admin uses the song's root key (or whatever they set); members pick their own
+    val songKey     = song?.rootKey    ?: "C"
+    val songQuality = song?.keyQuality ?: "Major"
+
+    // Admin key comes from Firebase session; fallback to song's own key
+    val adminKey     = session?.adminKey?.takeIf { it.isNotEmpty() }     ?: songKey
+    val adminQuality = session?.adminQuality?.takeIf { it.isNotEmpty() } ?: songQuality
 
     // Member-local key (resets when song changes)
     var memberKey     by remember(song?.id) { mutableStateOf(songKey) }
     var memberQuality by remember(song?.id) { mutableStateOf(songQuality) }
 
     // Key actually used for chord rendering
-    val displayKey     = if (isAdmin) songKey     else memberKey
-    val displayQuality = if (isAdmin) songQuality else memberQuality
+    val displayKey     = if (isAdmin) adminKey     else memberKey
+    val displayQuality = if (isAdmin) adminQuality else memberQuality
 
-    // Member key-picker sheet
-    val sheetState    = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope         = rememberCoroutineScope()
-    var showKeyPicker by remember { mutableStateOf(false) }
+    // Key picker sheets
+    val sheetState          = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val adminSheetState     = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope               = rememberCoroutineScope()
+    var showKeyPicker       by remember { mutableStateOf(false) }    // member
+    var showAdminKeyPicker  by remember { mutableStateOf(false) }    // admin
+
+    // Member: dialog when admin changes key mid-session
+    var showKeyChangeDialog  by remember { mutableStateOf(false) }
+    var keyChangeDialogKey   by remember { mutableStateOf("") }
+    var keyChangeDialogQuality by remember { mutableStateOf("") }
+
+    // Member: kicked-out dialog
+    var showKickedDialog by remember { mutableStateOf(false) }
 
     val totalSongs = state.set?.songs?.size ?: 0
 
     LaunchedEffect(sessionId, isAdmin) {
         if (isAdmin) sessionViewModel.connectAsAdmin(sessionId)
         else         sessionViewModel.joinSession(sessionId, "")
+    }
+
+    // Member: detect when admin changes the key and show popup
+    LaunchedEffect(session?.adminKey, session?.adminQuality) {
+        val newKey     = session?.adminKey     ?: ""
+        val newQuality = session?.adminQuality ?: ""
+        if (!isAdmin && newKey.isNotEmpty()) {
+            keyChangeDialogKey     = newKey
+            keyChangeDialogQuality = newQuality.ifEmpty { "Major" }
+            showKeyChangeDialog    = true
+        }
     }
 
     // Member toast: show briefly when admin calls a chord
@@ -136,6 +161,13 @@ fun LiveSessionScreen(
             toastVisible   = true
             delay(2500L)
             toastVisible   = false
+        }
+    }
+
+    // Member: handle session ended (kicked out)
+    LaunchedEffect(state.error) {
+        if (!isAdmin && state.error == "Session has ended") {
+            showKickedDialog = true
         }
     }
 
@@ -174,72 +206,86 @@ fun LiveSessionScreen(
         else null
     }
 
+    // ── Kicked-out dialog ─────────────────────────────────────────────────────
+    if (showKickedDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            title   = { Text("Session Ended") },
+            text    = { Text("The admin has ended the session.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showKickedDialog = false
+                    sessionViewModel.clearError()
+                    onBack()
+                }) { Text("OK") }
+            }
+        )
+    }
+
+    // ── Admin key-change dialog shown to members ───────────────────────────────
+    if (showKeyChangeDialog && !isAdmin) {
+        AlertDialog(
+            onDismissRequest = { showKeyChangeDialog = false },
+            title   = { Text("Admin Changed Key") },
+            text    = {
+                Text("The admin set the key to $keyChangeDialogKey $keyChangeDialogQuality. Switch to match?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    memberKey     = keyChangeDialogKey
+                    memberQuality = keyChangeDialogQuality
+                    showKeyChangeDialog = false
+                }) { Text("Use This Key") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showKeyChangeDialog = false }) { Text("Keep Mine") }
+            }
+        )
+    }
+
     // ── Member key-picker sheet ────────────────────────────────────────────────
     if (showKeyPicker && !isAdmin) {
         ModalBottomSheet(
             onDismissRequest = { showKeyPicker = false },
             sheetState       = sheetState
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("My Key",
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold)
-                Text("Choose the key that works for you. Other members are unaffected.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(16.dp))
-                // Quality chips
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Major", "Minor").forEach { q ->
-                        Surface(
-                            onClick = { memberQuality = q },
-                            shape   = RoundedCornerShape(20.dp),
-                            color   = if (memberQuality == q) MaterialTheme.colorScheme.primaryContainer
-                                      else MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Text(q, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (memberQuality == q) MaterialTheme.colorScheme.onPrimaryContainer
-                                        else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
+            KeyPickerContent(
+                title        = "My Key",
+                subtitle     = "Choose the key that works for you. Other members are unaffected.",
+                selectedKey  = memberKey,
+                selectedQuality = memberQuality,
+                onQualityChange = { memberQuality = it },
+                onKeySelect  = { key ->
+                    memberKey = key
+                    scope.launch { sheetState.hide() }
+                        .invokeOnCompletion { showKeyPicker = false }
                 }
-                Spacer(Modifier.height(12.dp))
-                // Key grid
-                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                    columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement   = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(ChordEngine.allKeys.size) { index ->
-                        val key = ChordEngine.allKeys[index]
-                        val selected = key == memberKey
-                        Surface(
-                            onClick = {
-                                memberKey = key
-                                scope.launch { sheetState.hide() }
-                                    .invokeOnCompletion { showKeyPicker = false }
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                            tonalElevation = if (selected) 0.dp else 2.dp
-                        ) {
-                            Text(
-                                text      = key,
-                                modifier  = Modifier.padding(vertical = 12.dp).fillMaxWidth(),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                style     = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+            )
+        }
+    }
+
+    // ── Admin key-picker sheet (broadcasts to all) ─────────────────────────────
+    if (showAdminKeyPicker && isAdmin) {
+        ModalBottomSheet(
+            onDismissRequest = { showAdminKeyPicker = false },
+            sheetState       = adminSheetState
+        ) {
+            // Local state tracks selection before confirming
+            var pickerKey     by remember { mutableStateOf(adminKey) }
+            var pickerQuality by remember { mutableStateOf(adminQuality) }
+            KeyPickerContent(
+                title        = "Set Key for Everyone",
+                subtitle     = "All members will be notified of the key change.",
+                selectedKey  = pickerKey,
+                selectedQuality = pickerQuality,
+                onQualityChange = { pickerQuality = it },
+                onKeySelect  = { key ->
+                    pickerKey = key
+                    sessionViewModel.setAdminKey(pickerKey, pickerQuality)
+                    scope.launch { adminSheetState.hide() }
+                        .invokeOnCompletion { showAdminKeyPicker = false }
                 }
-                Spacer(Modifier.height(32.dp))
-            }
+            )
         }
     }
 
@@ -321,7 +367,9 @@ fun LiveSessionScreen(
                 CircularProgressIndicator()
             }
 
-            state.error != null && song == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            state.error != null && song == null && !showKickedDialog -> Box(
+                Modifier.fillMaxSize(), contentAlignment = Alignment.Center
+            ) {
                 Text(state.error ?: "Session ended",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyLarge)
@@ -339,7 +387,7 @@ fun LiveSessionScreen(
                         AdminRoomCard(roomCode, qrBitmap, participantCount)
                     }
 
-                    // ── Active chord callout banner — admin only ───────────────
+                    // ── Active chord callout banner ────────────────────────────
                     if (activeChordDegree.isNotEmpty() && isAdmin) {
                         ActiveChordBanner(
                             degree     = activeChordDegree,
@@ -365,14 +413,34 @@ fun LiveSessionScreen(
                                     Text(song.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                                     Spacer(Modifier.height(4.dp))
                                     if (isAdmin) {
-                                        Text("Key: $displayKey  •  $displayQuality",
-                                            color = MaterialTheme.colorScheme.primary,
-                                            style = MaterialTheme.typography.bodyMedium)
-                                        Text("Tap any chord to call it out for the team",
+                                        // Admin: tappable key row that opens key picker and broadcasts
+                                        Surface(
+                                            onClick = { showAdminKeyPicker = true },
+                                            shape   = RoundedCornerShape(8.dp),
+                                            color   = MaterialTheme.colorScheme.surfaceVariant
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Text("Key:",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text("$displayKey  $displayQuality",
+                                                    fontWeight = FontWeight.Bold,
+                                                    color      = MaterialTheme.colorScheme.primary,
+                                                    style      = MaterialTheme.typography.labelMedium)
+                                                Text("▾",
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    style = MaterialTheme.typography.labelMedium)
+                                            }
+                                        }
+                                        Text("Tap key to change for everyone  •  Tap chord to call out",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     } else {
-                                        // Member: tappable key selector
+                                        // Member: tappable key selector (local only)
                                         Surface(
                                             onClick = { showKeyPicker = true },
                                             shape   = RoundedCornerShape(8.dp),
@@ -491,6 +559,73 @@ fun LiveSessionScreen(
     }
 }
 
+// ── Shared key picker content (used by both admin and member sheets) ───────────
+@Composable
+private fun KeyPickerContent(
+    title:           String,
+    subtitle:        String,
+    selectedKey:     String,
+    selectedQuality: String,
+    onQualityChange: (String) -> Unit,
+    onKeySelect:     (String) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(16.dp))
+        // Quality chips
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Major", "Minor").forEach { q ->
+                Surface(
+                    onClick = { onQualityChange(q) },
+                    shape   = RoundedCornerShape(20.dp),
+                    color   = if (selectedQuality == q) MaterialTheme.colorScheme.primaryContainer
+                              else MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Text(q, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selectedQuality == q) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        // Key grid
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(4),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement   = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(ChordEngine.allKeys.size) { index ->
+                val key      = ChordEngine.allKeys[index]
+                val selected = key == selectedKey
+                Surface(
+                    onClick = { onKeySelect(key) },
+                    shape   = RoundedCornerShape(10.dp),
+                    color   = if (selected) MaterialTheme.colorScheme.primary
+                              else MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = if (selected) 0.dp else 2.dp
+                ) {
+                    Text(
+                        text       = key,
+                        modifier   = Modifier
+                            .padding(vertical = 12.dp)
+                            .fillMaxWidth(),
+                        textAlign  = androidx.compose.ui.text.style.TextAlign.Center,
+                        style      = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color      = if (selected) MaterialTheme.colorScheme.onPrimary
+                                     else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
 // ── Active chord callout banner ────────────────────────────────────────────────
 @Composable
 private fun ActiveChordBanner(
@@ -515,7 +650,6 @@ private fun ActiveChordBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Pulsing dot
             Canvas(Modifier.size(10.dp)) {
                 drawCircle(ActiveChordColor.copy(alpha = pulse * 0.6f))
                 drawCircle(ActiveChordColor, radius = size.minDimension * 0.35f)

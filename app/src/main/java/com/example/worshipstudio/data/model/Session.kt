@@ -14,5 +14,9 @@ data class Session(
     /** Degree currently called out by admin (e.g. "IV", "V"). Empty = none. */
     val activeChordDegree:  String  = "",
     /** Set when this is a push session with a single song (no set). Empty = regular session. */
-    val pushSongId:         String  = ""
+    val pushSongId:         String  = "",
+    /** Key selected by admin during live session. Empty = use song's rootKey. */
+    val adminKey:           String  = "",
+    /** Quality selected by admin during live session. Empty = use song's keyQuality. */
+    val adminQuality:       String  = ""
 )

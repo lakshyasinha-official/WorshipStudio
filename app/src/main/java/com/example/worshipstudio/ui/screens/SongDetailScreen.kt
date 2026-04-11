@@ -234,12 +234,14 @@ fun SongDetailScreen(
                                     val song = state.song ?: return@IconButton
                                     isPushing = true
                                     sessionViewModel.createPushSession(
-                                        songId    = song.id,
-                                        songName  = song.name,
-                                        adminId   = adminId,
-                                        adminName = adminName,
-                                        churchId  = churchId,
-                                        onSuccess = { sessionId ->
+                                        songId       = song.id,
+                                        songName     = song.name,
+                                        adminId      = adminId,
+                                        adminName    = adminName,
+                                        churchId     = churchId,
+                                        adminKey     = state.currentKey,
+                                        adminQuality = state.currentQuality,
+                                        onSuccess    = { sessionId ->
                                             isPushing = false
                                             onPushSession(sessionId)
                                         },
