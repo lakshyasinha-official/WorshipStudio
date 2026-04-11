@@ -11,17 +11,15 @@ import kotlinx.coroutines.launch
 @Stable
 data class AuthState(
     val isLoading:          Boolean = false,
-    val isLoggedIn:         Boolean = false,
-    val error:              String? = null,
-    val email:              String  = "",
-    val displayName:        String  = "",
-    val churchId:           String  = "",
-    val userId:             String  = "",
-    val role:               String  = "member",
-    /** True when user logged in after a password reset — forces them to set a new password. */
-    val mustChangePassword: Boolean = false,
-    /** Alert message waiting for the admin (null = none). */
-    val adminAlert:         String? = null
+    val isLoggedIn:  Boolean = false,
+    val error:       String? = null,
+    val email:       String  = "",
+    val displayName: String  = "",
+    val churchId:    String  = "",
+    val userId:      String  = "",
+    val role:        String  = "member",
+    /** Alert message waiting for the admin after a member resets their password. */
+    val adminAlert:  String? = null
 )
 
 class AuthViewModel : ViewModel() {
@@ -124,31 +122,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // ── Change password (called after OTP login, user sets permanent password) ─
-    fun changePassword(
-        newPassword: String,
-        onSuccess:   () -> Unit,
-        onError:     (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
-            val result = repo.changePassword(newPassword)
-            result.onSuccess {
-                val s = _state.value
-                // Clear the reset flag in DB
-                repo.clearPasswordResetPending(s.email, s.churchId)
-                // Notify admin
-                repo.notifyAdminPasswordChange(s.churchId, s.displayName, s.email)
-                _state.value = s.copy(mustChangePassword = false, isLoading = false)
-                onSuccess()
-            }
-            result.onFailure {
-                _state.value = _state.value.copy(isLoading = false)
-                onError(it.message ?: "Failed to update password")
-            }
-        }
-    }
-
     // ── Admin alert ───────────────────────────────────────────────────────────
     fun startObservingAdminAlert(churchId: String) {
         viewModelScope.launch {
@@ -172,19 +145,22 @@ class AuthViewModel : ViewModel() {
         val resolvedName = data?.get("displayName") as? String ?: displayName
         val userId = data?.get("userId") as? String ?: ""
 
-        // Check if user needs to set a new password (logged in after a reset request)
-        val mustChange = repo.checkPasswordResetPending(email, churchId)
-
         _state.value = _state.value.copy(
-            email              = email,
-            displayName        = resolvedName,
-            churchId           = data?.get("churchId") as? String ?: churchId,
-            userId             = userId,
-            role               = role,
-            isLoggedIn         = true,
-            isLoading          = false,
-            mustChangePassword = mustChange
+            email       = email,
+            displayName = resolvedName,
+            churchId    = data?.get("churchId") as? String ?: churchId,
+            userId      = userId,
+            role        = role,
+            isLoggedIn  = true,
+            isLoading   = false
         )
+
+        // If this login follows a password reset, silently notify admin and clear the flag
+        val wasReset = repo.checkPasswordResetPending(email, churchId)
+        if (wasReset) {
+            repo.clearPasswordResetPending(email, churchId)
+            repo.notifyAdminPasswordChange(churchId, resolvedName, email)
+        }
 
         // Admin-only: start watching for password-change notifications
         if (role == "admin") {

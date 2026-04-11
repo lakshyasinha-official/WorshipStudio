@@ -79,15 +79,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -173,78 +169,6 @@ fun SongListScreen(
             setViewModel.loadSets(authState.churchId)
             tagViewModel.loadTags(authState.churchId)
         }
-    }
-
-    // ── Set New Password dialog (shown when user logged in after a reset) ──────
-    if (authState.mustChangePassword) {
-        var newPassword    by remember { mutableStateOf("") }
-        var confirmPass    by remember { mutableStateOf("") }
-        var pwVisible      by remember { mutableStateOf(false) }
-        var changeError    by remember { mutableStateOf<String?>(null) }
-
-        AlertDialog(
-            onDismissRequest = { /* non-dismissable */ },
-            title = { Text("Set New Password") },
-            text  = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "Welcome back! For your security, please set a new permanent password.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedTextField(
-                        value                = newPassword,
-                        onValueChange        = { newPassword = it; changeError = null },
-                        label                = { Text("New password") },
-                        singleLine           = true,
-                        keyboardOptions      = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        visualTransformation = if (pwVisible) VisualTransformation.None
-                                               else PasswordVisualTransformation(),
-                        trailingIcon         = {
-                            TextButton(onClick = { pwVisible = !pwVisible }) {
-                                Text(if (pwVisible) "Hide" else "Show",
-                                    style = MaterialTheme.typography.labelSmall)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value                = confirmPass,
-                        onValueChange        = { confirmPass = it; changeError = null },
-                        label                = { Text("Confirm password") },
-                        singleLine           = true,
-                        keyboardOptions      = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier             = Modifier.fillMaxWidth()
-                    )
-                    if (changeError != null) {
-                        Text(changeError!!, color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = newPassword.isNotBlank() && confirmPass.isNotBlank() && !authState.isLoading,
-                    onClick = {
-                        if (newPassword.length < 6) {
-                            changeError = "Password must be at least 6 characters."
-                        } else if (newPassword != confirmPass) {
-                            changeError = "Passwords do not match."
-                        } else {
-                            authViewModel.changePassword(
-                                newPassword = newPassword,
-                                onSuccess   = { /* dialog auto-closes when mustChangePassword = false */ },
-                                onError     = { changeError = it }
-                            )
-                        }
-                    }
-                ) {
-                    if (authState.isLoading) CircularProgressIndicator(Modifier.size(16.dp))
-                    else Text("Save Password", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                }
-            }
-        )
     }
 
     // ── Admin alert dialog (password change notification) ─────────────────────
