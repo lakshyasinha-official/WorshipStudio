@@ -27,6 +27,8 @@ class ChatViewModel : ViewModel() {
         if (observing || churchId.isEmpty()) return
         observing     = true
         currentUserId = userId
+        // Delete messages older than 24h from Firebase on start
+        repo.pruneOldMessages(churchId)
         viewModelScope.launch {
             repo.observeMessages(churchId).collect { messages ->
                 val unread = messages.count {
