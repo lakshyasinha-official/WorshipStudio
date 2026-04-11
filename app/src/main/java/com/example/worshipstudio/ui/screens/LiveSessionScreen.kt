@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -128,6 +129,15 @@ fun LiveSessionScreen(
     var showKeyPicker       by remember { mutableStateOf(false) }    // member
     var showAdminKeyPicker  by remember { mutableStateOf(false) }    // admin
 
+    // Admin: end-session confirmation dialog
+    var showEndDialog by remember { mutableStateOf(false) }
+
+    // Helper: end session and navigate back
+    fun confirmEnd() {
+        sessionViewModel.endSession()
+        onBack()
+    }
+
     // Member: dialog when admin changes key mid-session
     var showKeyChangeDialog  by remember { mutableStateOf(false) }
     var keyChangeDialogKey   by remember { mutableStateOf("") }
@@ -135,6 +145,14 @@ fun LiveSessionScreen(
 
     // Member: kicked-out dialog
     var showKickedDialog by remember { mutableStateOf(false) }
+
+    // Intercept system back gesture
+    BackHandler {
+        when {
+            isAdmin -> showEndDialog = true
+            else    -> { sessionViewModel.leaveSession(); onBack() }
+        }
+    }
 
     val totalSongs = state.set?.songs?.size ?: 0
 
@@ -204,6 +222,43 @@ fun LiveSessionScreen(
     val qrBitmap = remember(roomCode) {
         if (roomCode.isNotEmpty()) generateQrBitmap("worshipsync://join/$roomCode", size = 512)
         else null
+    }
+
+    // ── Admin: end-session confirmation dialog ────────────────────────────────
+    if (showEndDialog && isAdmin) {
+        AlertDialog(
+            onDismissRequest = { showEndDialog = false },
+            title = { Text("End Session?") },
+            text  = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "This will close the session for everyone connected (${participantCount} participant${if (participantCount == 1) "" else "s"}).",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "All members will be removed from the session immediately.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showEndDialog = false; confirmEnd() }
+                ) {
+                    Text(
+                        "End Session",
+                        color      = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDialog = false }) {
+                    Text("Stay")
+                }
+            }
+        )
     }
 
     // ── Kicked-out dialog ─────────────────────────────────────────────────────
@@ -324,9 +379,8 @@ fun LiveSessionScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (isAdmin) sessionViewModel.endSession()
-                        else         sessionViewModel.leaveSession()
-                        onBack()
+                        if (isAdmin) showEndDialog = true
+                        else { sessionViewModel.leaveSession(); onBack() }
                     }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 }
             )

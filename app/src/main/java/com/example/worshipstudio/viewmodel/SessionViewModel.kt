@@ -227,12 +227,17 @@ class SessionViewModel : ViewModel() {
                     }
                     return@collect
                 }
+                // Always sync churchId from the session so endSession() has it
+                if (_state.value.churchId.isEmpty() && session.churchId.isNotEmpty()) {
+                    _state.value = _state.value.copy(churchId = session.churchId)
+                }
                 // Push session: load the single song directly, no set needed
                 if (session.pushSongId.isNotEmpty()) {
                     val song = songRepo.getSong(session.pushSongId)
                     _state.value = _state.value.copy(
                         session     = session,
                         roomCode    = session.roomCode,
+                        churchId    = session.churchId,
                         set         = null,
                         currentSong = song,
                         isLoading   = false
@@ -247,6 +252,7 @@ class SessionViewModel : ViewModel() {
                 _state.value = _state.value.copy(
                     session     = session,
                     roomCode    = session.roomCode,
+                    churchId    = session.churchId,
                     set         = set,
                     currentSong = song,
                     isLoading   = false
