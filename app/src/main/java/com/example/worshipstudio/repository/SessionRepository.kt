@@ -31,6 +31,9 @@ class SessionRepository {
             sessions.child(existingId).removeValue().await()
             if (oldSession?.roomCode?.isNotEmpty() == true)
                 roomCodes.child(oldSession.roomCode).removeValue()
+            // Always wipe the stale push banner so members don't see a dead session
+            churchPushes.child(churchId).removeValue()
+            churchSessions.child(churchId).removeValue()
         } catch (_: Exception) { /* best-effort */ }
     }
 
@@ -202,11 +205,19 @@ class SessionRepository {
         churchSessions.child(churchId).removeValue()
     }
 
-    // ── End session — removes node + cleans up roomCode index ─────────────────
+    // ── Check if a session node still exists ──────────────────────────────────
+    suspend fun sessionExists(sessionId: String): Boolean = try {
+        sessions.child(sessionId).get().await().exists()
+    } catch (_: Exception) { false }
+
+    // ── End session — removes node + cleans up roomCode + push banner ──────────
     suspend fun endSession(sessionId: String, roomCode: String, churchId: String = ""): Result<Unit> = try {
         sessions.child(sessionId).removeValue().await()
         if (roomCode.isNotEmpty()) roomCodes.child(roomCode).removeValue()
-        if (churchId.isNotEmpty()) clearChurchSession(churchId)
+        if (churchId.isNotEmpty()) {
+            clearChurchSession(churchId)
+            clearChurchPush(churchId)   // always wipe push banner when session ends
+        }
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 }

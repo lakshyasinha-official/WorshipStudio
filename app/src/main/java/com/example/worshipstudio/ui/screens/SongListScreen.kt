@@ -579,6 +579,9 @@ fun SongListScreen(
         // ── Push notification banner (members only) ────────────────────────────
         if (churchPush != null && !isAdmin && onJoinPushSession != null) {
             val push = churchPush!!
+            var joinValidating by remember(push.sessionId) { mutableStateOf(false) }
+            var sessionGone    by remember(push.sessionId) { mutableStateOf(false) }
+
             // Auto-dismiss after 60 seconds
             LaunchedEffect(push.sessionId) {
                 kotlinx.coroutines.delay(60_000)
@@ -591,7 +594,8 @@ fun SongListScreen(
             ) {
                 Surface(
                     shape     = RoundedCornerShape(20.dp),
-                    color     = MaterialTheme.colorScheme.primaryContainer,
+                    color     = if (sessionGone) MaterialTheme.colorScheme.errorContainer
+                                else MaterialTheme.colorScheme.primaryContainer,
                     shadowElevation = 8.dp,
                     modifier  = Modifier.fillMaxWidth()
                 ) {
@@ -601,31 +605,58 @@ fun SongListScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             androidx.compose.foundation.Canvas(Modifier.size(8.dp)) {
-                                drawCircle(androidx.compose.ui.graphics.Color(0xFF4CAF50))
+                                drawCircle(
+                                    if (sessionGone) androidx.compose.ui.graphics.Color(0xFFEF5350)
+                                    else             androidx.compose.ui.graphics.Color(0xFF4CAF50)
+                                )
                             }
                             Text(
-                                text  = push.adminName.ifEmpty { "Admin" } + " started a session",
+                                text  = if (sessionGone) "Session has already ended"
+                                        else push.adminName.ifEmpty { "Admin" } + " started a session",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (sessionGone) MaterialTheme.colorScheme.onErrorContainer
+                                        else MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text       = push.songName,
-                            style      = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color      = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        if (!sessionGone) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text       = push.songName,
+                                style      = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color      = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            androidx.compose.material3.Button(
-                                onClick  = { onJoinPushSession(push.sessionId) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Join Now") }
+                            if (!sessionGone) {
+                                androidx.compose.material3.Button(
+                                    onClick  = {
+                                        joinValidating = true
+                                        sessionViewModel?.validateAndJoinPushSession(
+                                            sessionId = push.sessionId,
+                                            churchId  = authState.churchId,
+                                            onValid   = { id ->
+                                                joinValidating = false
+                                                onJoinPushSession(id)
+                                            },
+                                            onStale   = {
+                                                joinValidating = false
+                                                sessionGone    = true
+                                            }
+                                        )
+                                    },
+                                    enabled  = !joinValidating,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (joinValidating) CircularProgressIndicator(Modifier.size(16.dp))
+                                    else Text("Join Now")
+                                }
+                            }
                             androidx.compose.material3.OutlinedButton(
                                 onClick  = { sessionViewModel?.dismissChurchPush(authState.churchId) },
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Dismiss") }
+                            ) { Text(if (sessionGone) "Dismiss" else "Dismiss") }
                         }
                     }
                 }

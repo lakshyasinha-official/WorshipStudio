@@ -92,6 +92,26 @@ class SessionViewModel : ViewModel() {
         observeParticipantCount(sessionId)
     }
 
+    // ── Validate push session exists then join (guards "Join Now" banner tap) ──
+    fun validateAndJoinPushSession(
+        sessionId: String,
+        churchId:  String,
+        onValid:   (String) -> Unit,
+        onStale:   () -> Unit
+    ) {
+        viewModelScope.launch {
+            val alive = sessionRepo.sessionExists(sessionId)
+            if (alive) {
+                onValid(sessionId)
+            } else {
+                // Dead session — wipe the stale push so banner disappears
+                sessionRepo.clearChurchPush(churchId)
+                _state.value = _state.value.copy(churchPush = null)
+                onStale()
+            }
+        }
+    }
+
     // ── Resolve 4-digit room code → sessionId, then join ─────────────────────
     fun joinByCode(
         code:      String,
@@ -162,6 +182,16 @@ class SessionViewModel : ViewModel() {
         if (churchId.isEmpty()) return
         viewModelScope.launch {
             sessionRepo.observeChurchPush(churchId).collect { push ->
+                if (push != null) {
+                    // Validate the referenced session still exists before showing banner
+                    val alive = sessionRepo.sessionExists(push.sessionId)
+                    if (!alive) {
+                        // Stale push — clear it from Firebase so nobody ever sees it again
+                        sessionRepo.clearChurchPush(churchId)
+                        _state.value = _state.value.copy(churchPush = null)
+                        return@collect
+                    }
+                }
                 _state.value = _state.value.copy(churchPush = push)
             }
         }
@@ -271,10 +301,8 @@ class SessionViewModel : ViewModel() {
             if (s.participantKey.isNotEmpty() && s.sessionId.isNotEmpty())
                 sessionRepo.removePresence(s.sessionId, s.participantKey)
             if (s.isAdmin && s.sessionId.isNotEmpty()) {
+                // endSession now always clears churchPush internally
                 sessionRepo.endSession(s.sessionId, s.roomCode, resolvedChurchId)
-                // Clear push node if this was a push session
-                if (s.session?.pushSongId?.isNotEmpty() == true && resolvedChurchId.isNotEmpty())
-                    sessionRepo.clearChurchPush(resolvedChurchId)
             }
             _state.value = SessionState()
         }
