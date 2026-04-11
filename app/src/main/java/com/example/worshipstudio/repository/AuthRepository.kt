@@ -1,16 +1,109 @@
 package com.example.worshipstudio.repository
 
 import com.example.worshipstudio.repository.MemberRepository
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository {
-    private val auth      = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance()
+    private val auth           = FirebaseAuth.getInstance()
+    private val firestore      = FirebaseFirestore.getInstance()
+    private val rtDb           = FirebaseDatabase.getInstance()
+    private val passwordResets = rtDb.getReference("passwordResets") // {churchId}/{encodedEmail}
+    private val adminAlerts    = rtDb.getReference("adminAlerts")    // {churchId}
+
+    // ── Encode email for use as Firebase RTDB key (. is not allowed) ──────────
+    private fun encodeEmail(email: String) = email.trim().lowercase().replace(".", ",")
+
+    // ── Forgot password: send Firebase reset link + flag the reset ────────────
+    suspend fun requestPasswordReset(email: String, churchId: String): Result<Unit> {
+        return try {
+            val church     = churchId.trim().lowercase()
+            val emailClean = email.trim().lowercase()
+            // Verify the email exists in this church (so we don't leak whether emails exist globally)
+            val snap = firestore.collection("memberships")
+                .whereEqualTo("churchId", church)
+                .whereEqualTo("email", emailClean)
+                .limit(1).get().await()
+            if (snap.isEmpty)
+                return Result.failure(Exception("No account found for \"$emailClean\" in church \"$church\"."))
+            // Flag in Realtime DB so next login detects it
+            val flag = mapOf("email" to emailClean, "requestedAt" to System.currentTimeMillis())
+            passwordResets.child(church).child(encodeEmail(emailClean)).setValue(flag).await()
+            // Firebase sends the reset email
+            auth.sendPasswordResetEmail(emailClean).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Check if a reset was requested for this email + church ────────────────
+    suspend fun checkPasswordResetPending(email: String, churchId: String): Boolean {
+        return try {
+            val snap = passwordResets.child(churchId.trim().lowercase())
+                .child(encodeEmail(email)).get().await()
+            if (!snap.exists()) return false
+            val requestedAt = snap.child("requestedAt").getValue(Long::class.java) ?: 0L
+            // Only treat as pending if requested within the last 24h
+            (System.currentTimeMillis() - requestedAt) < 24 * 60 * 60 * 1000L
+        } catch (e: Exception) { false }
+    }
+
+    // ── Clear the pending reset flag ──────────────────────────────────────────
+    fun clearPasswordResetPending(email: String, churchId: String) {
+        passwordResets.child(churchId.trim().lowercase())
+            .child(encodeEmail(email)).removeValue()
+    }
+
+    // ── Change the current user's password ────────────────────────────────────
+    suspend fun changePassword(newPassword: String): Result<Unit> {
+        return try {
+            auth.currentUser?.updatePassword(newPassword)?.await()
+                ?: return Result.failure(Exception("Not signed in"))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Notify admin that a user changed their password ───────────────────────
+    fun notifyAdminPasswordChange(churchId: String, displayName: String, email: String) {
+        val alert = mapOf(
+            "message"     to "$displayName ($email) successfully updated their password.",
+            "timestamp"   to System.currentTimeMillis()
+        )
+        adminAlerts.child(churchId.trim().lowercase()).setValue(alert)
+    }
+
+    // ── Admin observes password-change alerts ─────────────────────────────────
+    fun observeAdminAlert(churchId: String): Flow<String?> = callbackFlow {
+        val ref = adminAlerts.child(churchId.trim().lowercase())
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snap: DataSnapshot) {
+                val msg = snap.child("message").getValue(String::class.java)
+                trySend(msg)
+            }
+            override fun onCancelled(e: DatabaseError) { close(e.toException()) }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // ── Admin dismisses alert ─────────────────────────────────────────────────
+    fun clearAdminAlert(churchId: String) {
+        adminAlerts.child(churchId.trim().lowercase()).removeValue()
+    }
 
     val currentUser: FirebaseUser? get() = auth.currentUser
 

@@ -40,7 +40,7 @@ import com.example.worshipstudio.R
 import com.example.worshipstudio.utils.CredentialsStore
 import com.example.worshipstudio.viewmodel.AuthViewModel
 
-private enum class LoginMode { SIGN_IN, JOIN_CHURCH, NEW_CHURCH }
+private enum class LoginMode { SIGN_IN, JOIN_CHURCH, NEW_CHURCH, FORGOT_PASSWORD }
 
 @Composable
 fun LoginScreen(
@@ -105,6 +105,10 @@ fun LoginScreen(
             Spacer(Modifier.height(28.dp))
 
             // ── Animated card ─────────────────────────────────────────────────
+            // Local state for forgot-password feedback
+            var resetSent    by remember { mutableStateOf(false) }
+            var resetError   by remember { mutableStateOf<String?>(null) }
+
             AnimatedContent(
                 targetState = mode,
                 transitionSpec = {
@@ -126,7 +130,12 @@ fun LoginScreen(
                         if (currentMode != LoginMode.SIGN_IN) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
-                                    onClick = { mode = LoginMode.SIGN_IN; viewModel.clearError() },
+                                    onClick = {
+                                        mode = LoginMode.SIGN_IN
+                                        viewModel.clearError()
+                                        resetSent  = false
+                                        resetError = null
+                                    },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
@@ -137,8 +146,11 @@ fun LoginScreen(
                                 }
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    if (currentMode == LoginMode.JOIN_CHURCH) "Join a Church"
-                                    else "Register New Church",
+                                    when (currentMode) {
+                                        LoginMode.JOIN_CHURCH     -> "Join a Church"
+                                        LoginMode.FORGOT_PASSWORD -> "Forgot Password"
+                                        else                      -> "Register New Church"
+                                    },
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize   = 18.sp,
                                     color      = Color.White
@@ -190,7 +202,19 @@ fun LoginScreen(
                                     else Text("Sign In", fontWeight = FontWeight.Bold)
                                 }
 
-                                Spacer(Modifier.height(20.dp))
+                                // Forgot password link
+                                TextButton(
+                                    onClick  = { mode = LoginMode.FORGOT_PASSWORD; viewModel.clearError() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        "Forgot password?",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White.copy(alpha = 0.70f)
+                                    )
+                                }
+
+                                Spacer(Modifier.height(8.dp))
                                 HorizontalDivider(color = Color.White.copy(alpha = 0.20f))
                                 Spacer(Modifier.height(16.dp))
 
@@ -224,6 +248,74 @@ fun LoginScreen(
                                     )
                                 ) {
                                     Text("Register a New Church")
+                                }
+                            }
+
+                            // ── Forgot Password ───────────────────────────────
+                            LoginMode.FORGOT_PASSWORD -> {
+                                if (resetSent) {
+                                    // ── Success state ──────────────────────────
+                                    Text("📧  Check your email",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize   = 18.sp,
+                                        color      = Color.White)
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "A password reset link has been sent to $email.\n\n" +
+                                        "After resetting via the link, come back and sign in. " +
+                                        "You will be prompted to set a new permanent password.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White.copy(alpha = 0.80f)
+                                    )
+                                    Spacer(Modifier.height(20.dp))
+                                    Button(
+                                        onClick  = {
+                                            mode      = LoginMode.SIGN_IN
+                                            resetSent = false
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) { Text("Back to Sign In") }
+                                } else {
+                                    // ── Request form ───────────────────────────
+                                    Text(
+                                        "Enter your registered email and church name. " +
+                                        "We'll send a reset link to your inbox.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.White.copy(alpha = 0.70f)
+                                    )
+                                    Spacer(Modifier.height(20.dp))
+
+                                    GlassTextField(email, { email = it }, "Email", KeyboardType.Email)
+                                    Spacer(Modifier.height(12.dp))
+                                    ChurchField(churchId, { churchId = it })
+
+                                    // Inline error for this flow
+                                    if (resetError != null) {
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(resetError!!, color = Color(0xFFFF6B6B),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.fillMaxWidth())
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+
+                                    Button(
+                                        onClick  = {
+                                            resetError = null
+                                            viewModel.requestPasswordReset(
+                                                email    = email,
+                                                churchId = churchId,
+                                                onSuccess = { resetSent = true },
+                                                onError   = { resetError = it }
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled  = !state.isLoading
+                                                && email.isNotBlank()
+                                                && churchId.isNotBlank()
+                                    ) {
+                                        if (state.isLoading) CircularProgressIndicator(Modifier.size(20.dp))
+                                        else Text("Send Reset Link", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
 
