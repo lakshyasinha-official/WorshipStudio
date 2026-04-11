@@ -64,8 +64,10 @@ export default function Layout({ membership }) {
         <SongSidebar
           churchId={churchId}
           selectedId={selectedId}
+          isAdmin={role === 'admin'}
           onSelect={openSong}
           onNew={openNew}
+          onDeleted={handleDeleted}
         />
 
         <main className="main-content">

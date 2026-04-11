@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore'
+import { collection, query, where, getDocs, onSnapshot, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase'
 
-export default function SongSidebar({ churchId, selectedId, onSelect, onNew }) {
+export default function SongSidebar({ churchId, selectedId, isAdmin, onSelect, onNew, onDeleted }) {
   const [songs,   setSongs]   = useState([])
   const [search,  setSearch]  = useState('')
   const [loading, setLoading] = useState(true)
@@ -44,6 +44,13 @@ export default function SongSidebar({ churchId, selectedId, onSelect, onNew }) {
     return unsub
   }, [churchId])
 
+  async function handleDelete(e, song) {
+    e.stopPropagation()
+    if (!window.confirm(`Delete "${song.name}"? This cannot be undone.`)) return
+    await deleteDoc(doc(db, 'songs', song.id))
+    if (selectedId === song.id) onDeleted?.()
+  }
+
   const term = search.trim().toLowerCase()
   const filtered = term
     ? songs.filter(s => (s.nameLowercase || s.name?.toLowerCase() || '').includes(term))
@@ -79,17 +86,28 @@ export default function SongSidebar({ churchId, selectedId, onSelect, onNew }) {
           </div>
         ) : (
           filtered.map(song => (
-            <button
+            <div
               key={song.id}
               className={`song-item ${selectedId === song.id ? 'selected' : ''}`}
               onClick={() => onSelect(song.id)}
             >
-              <span className="song-item-name">{song.name}</span>
-              <span className="song-item-meta">
-                {song.rootKey} {song.keyQuality}
-                {song.parts?.length > 0 && ` · ${song.parts.length} parts`}
-              </span>
-            </button>
+              <div className="song-item-text">
+                <span className="song-item-name">{song.name}</span>
+                <span className="song-item-meta">
+                  {song.rootKey} {song.keyQuality}
+                  {song.parts?.length > 0 && ` · ${song.parts.length} parts`}
+                </span>
+              </div>
+              {isAdmin && (
+                <button
+                  className="song-item-delete"
+                  onClick={e => handleDelete(e, song)}
+                  title="Delete song"
+                >
+                  🗑
+                </button>
+              )}
+            </div>
           ))
         )}
       </div>
