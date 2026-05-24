@@ -327,13 +327,14 @@ a { color: var(--primary); }
 .scale-reference-title { font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; }
 .scale-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .scale-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 8px 3px 6px;
-  background: #fff; border: 1px solid #FFCC80; border-radius: 20px;
-  font-size: 12px;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 10px;
+  background: #fff; border: 1px solid #FFCC80; border-radius: 8px;
+  min-width: 44px;
 }
-.scale-degree { font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
-.scale-chord  { color: var(--text-secondary); }
+.scale-num { font-size: 10px; opacity: 0.6; color: var(--accent); font-weight: 600; }
+.scale-degree { font-size: 11px; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+.scale-chord  { font-size: 13px; font-weight: 800; color: var(--text); }
 
 /* Parts section */
 .parts-section { display: flex; flex-direction: column; gap: 16px; }
@@ -378,6 +379,13 @@ a { color: var(--primary); }
 .part-header-right { display: flex; align-items: center; gap: 4px; }
 
 .part-label { font-weight: 700; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+
+.part-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
 .repeat-wrap {
   display: flex; align-items: center; gap: 5px;

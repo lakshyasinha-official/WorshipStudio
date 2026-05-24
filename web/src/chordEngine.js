@@ -4,71 +4,89 @@ export const ALL_KEYS  = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B']
 export const QUALITIES = ['Major', 'Minor', 'Diminished']
 export const PART_TYPES = ['Start', 'Verse', 'Chorus', 'Bridge', 'Other', 'End']
 
-// ── Scale tables ──────────────────────────────────────────────────────────────
+// ── Scale tables (12-note chromatic) ──────────────────────────────────────────
 const MAJOR_SCALES = {
-  'C' : ['C' , 'D' , 'E' , 'F' , 'G' , 'A' , 'B' ],
-  'C#': ['C#', 'D#', 'E#', 'F#', 'G#', 'A#', 'B#'],
-  'D' : ['D' , 'E' , 'F#', 'G' , 'A' , 'B' , 'C#'],
-  'Eb': ['Eb', 'F' , 'G' , 'Ab', 'Bb', 'C' , 'D' ],
-  'E' : ['E' , 'F#', 'G#', 'A' , 'B' , 'C#', 'D#'],
-  'F' : ['F' , 'G' , 'A' , 'Bb', 'C' , 'D' , 'E' ],
-  'F#': ['F#', 'G#', 'A#', 'B' , 'C#', 'D#', 'E#'],
-  'G' : ['G' , 'A' , 'B' , 'C' , 'D' , 'E' , 'F#'],
-  'Ab': ['Ab', 'Bb', 'C' , 'Db', 'Eb', 'F' , 'G' ],
-  'A' : ['A' , 'B' , 'C#', 'D' , 'E' , 'F#', 'G#'],
-  'Bb': ['Bb', 'C' , 'D' , 'Eb', 'F' , 'G' , 'A' ],
-  'B' : ['B' , 'C#', 'D#', 'E' , 'F#', 'G#', 'A#'],
+  'C' : ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"],
+  'C#': ["C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"],
+  'D' : ["D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"],
+  'Eb': ["Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"],
+  'E' : ["E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"],
+  'F' : ["F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"],
+  'F#': ["F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"],
+  'G' : ["G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"],
+  'Ab': ["Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"],
+  'A' : ["A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"],
+  'Bb': ["Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"],
+  'B' : ["B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#"]
 }
 
 const MINOR_SCALES = {
-  'C' : ['C' , 'D' , 'Eb', 'F' , 'G' , 'Ab', 'Bb'],
-  'C#': ['C#', 'D#', 'E' , 'F#', 'G#', 'A' , 'B' ],
-  'D' : ['D' , 'E' , 'F' , 'G' , 'A' , 'Bb', 'C' ],
-  'Eb': ['Eb', 'F' , 'Gb', 'Ab', 'Bb', 'B' , 'Db'],
-  'E' : ['E' , 'F#', 'G' , 'A' , 'B' , 'C' , 'D' ],
-  'F' : ['F' , 'G' , 'Ab', 'Bb', 'C' , 'Db', 'Eb'],
-  'F#': ['F#', 'G#', 'A' , 'B' , 'C#', 'D' , 'E' ],
-  'G' : ['G' , 'A' , 'Bb', 'C' , 'D' , 'Eb', 'F' ],
-  'Ab': ['Ab', 'Bb', 'B' , 'Db', 'Eb', 'E' , 'Gb'],
-  'A' : ['A' , 'B' , 'C' , 'D' , 'E' , 'F' , 'G' ],
-  'Bb': ['Bb', 'C' , 'Db', 'Eb', 'F' , 'Gb', 'Ab'],
-  'B' : ['B' , 'C#', 'D' , 'E' , 'F#', 'G' , 'A' ],
+  'C' : ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"],
+  'C#': ["C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"],
+  'D' : ["D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"],
+  'Eb': ["Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"],
+  'E' : ["E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"],
+  'F' : ["F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"],
+  'F#': ["F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"],
+  'G' : ["G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"],
+  'Ab': ["Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"],
+  'A' : ["A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"],
+  'Bb': ["Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"],
+  'B' : ["B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#"]
 }
 
 const HARMONIC_MINOR_SCALES = {
-  'C' : ['C' , 'D' , 'Eb', 'F' , 'G' , 'Ab', 'B' ],
-  'C#': ['C#', 'D#', 'E' , 'F#', 'G#', 'A' , 'B#'],
-  'D' : ['D' , 'E' , 'F' , 'G' , 'A' , 'Bb', 'C#'],
-  'Eb': ['Eb', 'F' , 'Gb', 'Ab', 'Bb', 'B' , 'D' ],
-  'E' : ['E' , 'F#', 'G' , 'A' , 'B' , 'C' , 'D#'],
-  'F' : ['F' , 'G' , 'Ab', 'Bb', 'C' , 'Db', 'E' ],
-  'F#': ['F#', 'G#', 'A' , 'B' , 'C#', 'D' , 'E#'],
-  'G' : ['G' , 'A' , 'Bb', 'C' , 'D' , 'Eb', 'F#'],
-  'Ab': ['Ab', 'Bb', 'B' , 'Db', 'Eb', 'E' , 'G' ],
-  'A' : ['A' , 'B' , 'C' , 'D' , 'E' , 'F' , 'G#'],
-  'Bb': ['Bb', 'C' , 'Db', 'Eb', 'F' , 'Gb', 'A' ],
-  'B' : ['B' , 'C#', 'D' , 'E' , 'F#', 'G' , 'A#'],
+  'C' : ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"],
+  'C#': ["C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"],
+  'D' : ["D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"],
+  'Eb': ["Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"],
+  'E' : ["E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"],
+  'F' : ["F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"],
+  'F#': ["F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"],
+  'G' : ["G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"],
+  'Ab': ["Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"],
+  'A' : ["A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"],
+  'Bb': ["Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"],
+  'B' : ["B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#"]
 }
 
 // ── Degree → [scaleIndex, suffix] ─────────────────────────────────────────────
 const DEGREE_INFO = {
-  // Major mode
-  'I'   : [0, ''   ],
-  'ii'  : [1, 'm'  ],
-  'iii' : [2, 'm'  ],
-  'IV'  : [3, ''   ],
-  'V'   : [4, ''   ],
-  'vi'  : [5, 'm'  ],
-  'vii°': [6, 'dim'],
-  'vii' : [6, 'dim'],
-  // Minor / harmonic minor mode
-  'i'   : [0, 'm'  ],
-  'ii°' : [1, 'dim'],
-  'III' : [2, ''   ],
-  'iv'  : [3, 'm'  ],
-  'v'   : [4, 'm'  ],
-  'VI'  : [5, ''   ],
-  'VII' : [6, ''   ],
+  // ── Major mode degrees ──────────────────────────────────
+  'I'     : [0, ''],
+  '♭II'   : [1, ''],
+  'ii'    : [2, 'm'],
+  '♭III'  : [3, ''],
+  'iii'   : [4, 'm'],
+  'IV'    : [5, ''],
+  '♯IV'   : [6, ''],
+  '♭V'    : [6, ''],
+  'V'     : [7, ''],
+  '♭VI'   : [8, ''],
+  'vi'    : [9, 'm'],
+  '♭VII'  : [10, ''],
+  'vii°'  : [11, 'dim'],
+
+  // ── Minor / Harmonic-minor mode degrees ─────────────────
+  'i'      : [0, 'm'],
+  '♭ii'    : [1, ''],
+  'ii'     : [2, 'm'],
+  'ii°'    : [2, 'dim'],
+  '♭iii'   : [3, ''],
+  'III'    : [3, ''],
+  'iii'    : [4, 'm'],
+  'iv'     : [5, 'm'],
+  '♯iv'    : [6, 'm'],
+  '♭v'     : [6, ''],
+  'v'      : [7, 'm'],
+  'V'      : [7, ''],
+  '♭vi'    : [8, ''],
+  'VI'     : [8, ''],
+  'vi'     : [9, 'm'],
+  '♭vii'   : [10, ''],
+  'VII'    : [10, ''],
+  'vii'    : [11, 'm'],
+  'vii°'   : [11, 'dim']
 }
 
 function scaleFor(key, quality) {
@@ -89,9 +107,9 @@ export function resolveChord(degree, key, quality = 'Major') {
 
 /** Return degree list appropriate for a given quality (matches Android degreesForQuality). */
 export function degreesForQuality(quality) {
-  if (quality === 'Minor')      return ['i', 'ii°', 'III', 'iv', 'v',  'VI', 'VII']
-  if (quality === 'Diminished') return ['i', 'ii°', 'III', 'iv', 'V',  'VI', 'vii°']
-  return                               ['I', 'ii',  'iii', 'IV', 'V',  'vi', 'vii°']
+  if (quality === 'Minor')      return ["i", "♭ii", "ii", "♭iii", "iii", "iv", "♭v", "v", "♭vi", "vi", "♭vii", "vii"]
+  if (quality === 'Diminished') return ["i", "ii°", "III", "iv", "V",  "VI", "vii°"]
+  return                               ["I", "♭II", "ii", "♭III", "iii", "IV", "♯IV", "V", "♭VI", "vi", "♭VII", "vii°"]
 }
 
 /**

@@ -2,54 +2,52 @@ package com.example.worshipstudio.engine
 
 object ChordEngine {
 
-    // ── Major scales ──────────────────────────────────────────────────────────
+    // ── Major scales (12-note chromatic) ──────────────────────────────────────
     private val majorScales = mapOf(
-        "C"  to listOf("C",  "D",  "E",  "F",  "G",  "A",  "B"),
-        "C#" to listOf("C#", "D#", "E#", "F#", "G#", "A#", "B#"),
-        "D"  to listOf("D",  "E",  "F#", "G",  "A",  "B",  "C#"),
-        "Eb" to listOf("Eb", "F",  "G",  "Ab", "Bb", "C",  "D"),
-        "E"  to listOf("E",  "F#", "G#", "A",  "B",  "C#", "D#"),
-        "F"  to listOf("F",  "G",  "A",  "Bb", "C",  "D",  "E"),
-        "F#" to listOf("F#", "G#", "A#", "B",  "C#", "D#", "E#"),
-        "G"  to listOf("G",  "A",  "B",  "C",  "D",  "E",  "F#"),
-        "Ab" to listOf("Ab", "Bb", "C",  "Db", "Eb", "F",  "G"),
-        "A"  to listOf("A",  "B",  "C#", "D",  "E",  "F#", "G#"),
-        "Bb" to listOf("Bb", "C",  "D",  "Eb", "F",  "G",  "A"),
-        "B"  to listOf("B",  "C#", "D#", "E",  "F#", "G#", "A#")
+        "C"  to listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"),
+        "C#" to listOf("C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"),
+        "D"  to listOf("D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"),
+        "Eb" to listOf("Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"),
+        "E"  to listOf("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"),
+        "F"  to listOf("F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"),
+        "F#" to listOf("F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"),
+        "G"  to listOf("G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"),
+        "Ab" to listOf("Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"),
+        "A"  to listOf("A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"),
+        "Bb" to listOf("Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"),
+        "B"  to listOf("B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#")
     )
 
-    // ── Natural minor (Aeolian) scales ────────────────────────────────────────
-    //   Formula: W H W W H W W  (relative to major: degrees 1 2 b3 4 5 b6 b7)
+    // ── Natural minor scales (12-note chromatic) ──────────────────────────────
     private val minorScales = mapOf(
-        "C"  to listOf("C",  "D",  "Eb", "F",  "G",  "Ab", "Bb"),
-        "C#" to listOf("C#", "D#", "E",  "F#", "G#", "A",  "B"),
-        "D"  to listOf("D",  "E",  "F",  "G",  "A",  "Bb", "C"),
-        "Eb" to listOf("Eb", "F",  "Gb", "Ab", "Bb", "B",  "Db"),
-        "E"  to listOf("E",  "F#", "G",  "A",  "B",  "C",  "D"),
-        "F"  to listOf("F",  "G",  "Ab", "Bb", "C",  "Db", "Eb"),
-        "F#" to listOf("F#", "G#", "A",  "B",  "C#", "D",  "E"),
-        "G"  to listOf("G",  "A",  "Bb", "C",  "D",  "Eb", "F"),
-        "Ab" to listOf("Ab", "Bb", "B",  "Db", "Eb", "E",  "Gb"),
-        "A"  to listOf("A",  "B",  "C",  "D",  "E",  "F",  "G"),
-        "Bb" to listOf("Bb", "C",  "Db", "Eb", "F",  "Gb", "Ab"),
-        "B"  to listOf("B",  "C#", "D",  "E",  "F#", "G",  "A")
+        "C"  to listOf("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"),
+        "C#" to listOf("C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"),
+        "D"  to listOf("D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"),
+        "Eb" to listOf("Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"),
+        "E"  to listOf("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"),
+        "F"  to listOf("F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"),
+        "F#" to listOf("F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"),
+        "G"  to listOf("G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"),
+        "Ab" to listOf("Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"),
+        "A"  to listOf("A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"),
+        "Bb" to listOf("Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"),
+        "B"  to listOf("B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#")
     )
 
-    // ── Harmonic minor scales (raised 7th — creates the "diminished" tension) ─
-    //   Formula: W H W W H A H  (A = augmented second between b6 and 7)
+    // ── Harmonic minor scales (12-note chromatic) ─────────────────────────────
     private val harmonicMinorScales = mapOf(
-        "C"  to listOf("C",  "D",  "Eb", "F",  "G",  "Ab", "B"),
-        "C#" to listOf("C#", "D#", "E",  "F#", "G#", "A",  "B#"),
-        "D"  to listOf("D",  "E",  "F",  "G",  "A",  "Bb", "C#"),
-        "Eb" to listOf("Eb", "F",  "Gb", "Ab", "Bb", "B",  "D"),
-        "E"  to listOf("E",  "F#", "G",  "A",  "B",  "C",  "D#"),
-        "F"  to listOf("F",  "G",  "Ab", "Bb", "C",  "Db", "E"),
-        "F#" to listOf("F#", "G#", "A",  "B",  "C#", "D",  "E#"),
-        "G"  to listOf("G",  "A",  "Bb", "C",  "D",  "Eb", "F#"),
-        "Ab" to listOf("Ab", "Bb", "B",  "Db", "Eb", "E",  "G"),
-        "A"  to listOf("A",  "B",  "C",  "D",  "E",  "F",  "G#"),
-        "Bb" to listOf("Bb", "C",  "Db", "Eb", "F",  "Gb", "A"),
-        "B"  to listOf("B",  "C#", "D",  "E",  "F#", "G",  "A#")
+        "C"  to listOf("C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"),
+        "C#" to listOf("C#", "D", "D#", "E", "E#", "F#", "G", "G#", "A", "A#", "B", "B#"),
+        "D"  to listOf("D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B", "C", "C#"),
+        "Eb" to listOf("Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D"),
+        "E"  to listOf("E", "F", "F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#"),
+        "F"  to listOf("F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"),
+        "F#" to listOf("F#", "G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "E#"),
+        "G"  to listOf("G", "Ab", "A", "Bb", "B", "C", "C#", "D", "Eb", "E", "F", "F#"),
+        "Ab" to listOf("Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G"),
+        "A"  to listOf("A", "Bb", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"),
+        "Bb" to listOf("Bb", "B", "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A"),
+        "B"  to listOf("B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#")
     )
 
     val allKeys = listOf("C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B")
@@ -57,30 +55,42 @@ object ChordEngine {
     val qualities = listOf("Major", "Minor", "Diminished")
 
     // ── Degree → (scaleIndex, chordSuffix) ───────────────────────────────────
-    //
-    //  Major key degrees  : I  ii  iii  IV  V  vi  vii°
-    //  Minor key degrees  : i  ii°  III  iv  v  VI  VII
-    //  Diminished (harm.) : i  ii°  III  iv  V  VI  vii°   ← V is major, vii° is dim
-    //
     private val degreeInfo: Map<String, Pair<Int, String>> = mapOf(
         // ── Major mode degrees ──────────────────────────────────
-        "I"    to Pair(0, ""),       // Tonic major
-        "ii"   to Pair(1, "m"),      // Supertonic minor
-        "iii"  to Pair(2, "m"),      // Mediant minor
-        "IV"   to Pair(3, ""),       // Subdominant major
-        "V"    to Pair(4, ""),       // Dominant major
-        "vi"   to Pair(5, "m"),      // Submediant minor
-        "vii°" to Pair(6, "dim"),    // Leading-tone diminished
-        "vii"  to Pair(6, "dim"),    // Alternate notation
+        "I"     to Pair(0, ""),
+        "♭II"   to Pair(1, ""),
+        "ii"    to Pair(2, "m"),
+        "♭III"  to Pair(3, ""),
+        "iii"   to Pair(4, "m"),
+        "IV"    to Pair(5, ""),
+        "♯IV"   to Pair(6, ""),
+        "♭V"    to Pair(6, ""),
+        "V"     to Pair(7, ""),
+        "♭VI"   to Pair(8, ""),
+        "vi"    to Pair(9, "m"),
+        "♭VII"  to Pair(10, ""),
+        "vii°"  to Pair(11, "dim"),
 
         // ── Minor / Harmonic-minor mode degrees ─────────────────
-        "i"    to Pair(0, "m"),      // Tonic minor
-        "ii°"  to Pair(1, "dim"),    // Supertonic diminished
-        "III"  to Pair(2, ""),       // Mediant major
-        "iv"   to Pair(3, "m"),      // Subdominant minor
-        "v"    to Pair(4, "m"),      // Dominant minor  (natural minor only)
-        "VI"   to Pair(5, ""),       // Submediant major
-        "VII"  to Pair(6, "")        // Subtonic major
+        "i"      to Pair(0, "m"),
+        "♭ii"    to Pair(1, ""),
+        "ii"     to Pair(2, "m"),
+        "ii°"    to Pair(2, "dim"),
+        "♭iii"   to Pair(3, ""),
+        "III"    to Pair(3, ""),
+        "iii"    to Pair(4, "m"),
+        "iv"     to Pair(5, "m"),
+        "♯iv"    to Pair(6, "m"),
+        "♭v"     to Pair(6, ""),
+        "v"      to Pair(7, "m"),
+        "V"      to Pair(7, ""),
+        "♭vi"    to Pair(8, ""),
+        "VI"     to Pair(8, ""),
+        "vi"     to Pair(9, "m"),
+        "♭vii"   to Pair(10, ""),
+        "VII"    to Pair(10, ""),
+        "vii"    to Pair(11, "m"),
+        "vii°"   to Pair(11, "dim")
     )
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -122,9 +132,9 @@ object ChordEngine {
 
     /** Return the chord degrees appropriate for a given quality (for the Add-Song UI). */
     fun degreesForQuality(quality: String): List<String> = when (quality) {
-        "Minor"      -> listOf("i", "ii°", "III", "iv", "v",  "VI", "VII")
+        "Minor"      -> listOf("i", "♭ii", "ii", "♭iii", "iii", "iv", "♭v", "v", "♭vi", "vi", "♭vii", "vii")
         "Diminished" -> listOf("i", "ii°", "III", "iv", "V",  "VI", "vii°")
-        else         -> listOf("I", "ii",  "iii", "IV", "V",  "vi", "vii°")
+        else         -> listOf("I", "♭II", "ii", "♭III", "iii", "IV", "♯IV", "V", "♭VI", "vi", "♭VII", "vii°")
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

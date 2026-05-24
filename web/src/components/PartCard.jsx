@@ -29,6 +29,7 @@ export default function PartCard({
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="part-header">
         <div className="part-header-left">
+          <span className="part-dot" style={{ backgroundColor: color }}></span>
           <span className="part-label" style={{ color }}>{displayName}</span>
 
           <label className="repeat-wrap">

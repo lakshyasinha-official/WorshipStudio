@@ -153,6 +153,8 @@ fun SongListScreen(
     var selectedIds     by remember { mutableStateOf(setOf<String>()) }
     var overflowOpen    by remember { mutableStateOf(false) }
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var songDelete by remember { mutableStateOf<Song?>(null) }
     fun exitSelection() { selectionMode = false; selectedIds = emptySet() }
     fun toggleSong(id: String) {
         selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
@@ -440,7 +442,10 @@ fun SongListScreen(
                                 selectionMode = true
                                 selectedIds   = setOf(id)
                             },
-                            onDelete        = { song -> songViewModel.deleteSong(song.id, authState.churchId) }
+                            onDelete        = { song ->
+                                songDelete = song
+                                showDeleteDialog = true
+                                }
                         )
                     }
                 } else {
@@ -585,6 +590,50 @@ fun SongListScreen(
                     }
                 }
             }
+        }
+        if (showDeleteDialog && songDelete != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDeleteDialog = false
+                    songDelete = null
+                },
+
+                title = {
+                    Text("Delete Song")
+                },
+
+                text = {
+                    Text("Are you sure you want to delete this song?")
+                },
+
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+
+                            songViewModel.deleteSong(
+                                songId = songDelete!!.id,
+                                churchId = authState.churchId
+                            )
+
+                            showDeleteDialog = false
+                            songDelete = null
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            songDelete = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

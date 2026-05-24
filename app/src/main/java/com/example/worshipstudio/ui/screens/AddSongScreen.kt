@@ -18,6 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -173,6 +175,27 @@ fun AddSongScreen(
         if (idx >= 0) {
             val newCount = (parts[idx].repeatCount + delta).coerceIn(1, 9)
             parts[idx] = parts[idx].copy(repeatCount = newCount)
+        }
+    }
+
+    fun movePart(id: String, delta: Int) {
+        val idx = parts.indexOfFirst { it.id == id }
+        if (idx < 0) return
+        val targetIdx = idx + delta
+        if (targetIdx !in parts.indices) return
+
+        val part = parts.removeAt(idx)
+        parts.add(targetIdx, part)
+
+        // Renumber
+        val types = parts.map { it.type }.toSet()
+        types.forEach { t ->
+            var n = 1
+            for (i in parts.indices) {
+                if (parts[i].type == t) {
+                    parts[i] = parts[i].copy(number = n++)
+                }
+            }
         }
     }
 
@@ -359,13 +382,17 @@ fun AddSongScreen(
                 )
             }
 
-            parts.forEach { part ->
+            parts.forEachIndexed { index, part ->
                 SongPartCard(
                     part           = part,
                     chordDegrees   = chordDegrees,
+                    isFirst        = index == 0,
+                    isLast         = index == parts.size - 1,
                     onLyricsChange = { updateLyrics(part.id, it) },
                     onRepeatChange = { updateRepeat(part.id, it) },
-                    onDelete       = { removePart(part.id) }
+                    onDelete       = { removePart(part.id) },
+                    onMoveUp       = { movePart(part.id, -1) },
+                    onMoveDown     = { movePart(part.id, 1) }
                 )
                 Spacer(Modifier.height(12.dp))
             }
@@ -465,9 +492,13 @@ private fun ScaleHelperRow(rootKey: String, keyQuality: String) {
 private fun SongPartCard(
     part: PartEntry,
     chordDegrees: List<String>,
+    isFirst: Boolean,
+    isLast: Boolean,
     onLyricsChange: (TextFieldValue) -> Unit,
     onRepeatChange: (Int) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
 ) {
     val color = partColor(part.type)
 
@@ -556,7 +587,35 @@ private fun SongPartCard(
                         )
                     }
 
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(6.dp))
+
+                    // Move Up
+                    IconButton(
+                        onClick  = onMoveUp,
+                        modifier = Modifier.size(30.dp),
+                        enabled  = !isFirst
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowUp, "Move Up",
+                            tint = if (isFirst) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Move Down
+                    IconButton(
+                        onClick  = onMoveDown,
+                        modifier = Modifier.size(30.dp),
+                        enabled  = !isLast
+                    ) {
+                        Icon(
+                            Icons.Default.KeyboardArrowDown, "Move Down",
+                            tint = if (isLast) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(2.dp))
 
                     // Delete
                     IconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {

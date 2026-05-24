@@ -247,13 +247,14 @@ export default function SongEditor({ songId, churchId, userId, isAdmin, onSaved,
 
       {/* ── Scale reference ─────────────────────────────────────────────── */}
       <div className="scale-reference">
-        <span className="scale-reference-title">Scale reference — {draft.rootKey} {draft.keyQuality}</span>
+        <span className="scale-reference-title">Scale Reference — {draft.rootKey} {draft.keyQuality}</span>
         <div className="scale-pills">
-          {degrees.map(d => (
-            <span key={d} className="scale-pill">
+          {degrees.map((d, i) => (
+            <div key={d} className="scale-pill">
+              <span className="scale-num">{i + 1}</span>
               <span className="scale-degree">{d}</span>
               <span className="scale-chord">{resolveChord(d, draft.rootKey, draft.keyQuality)}</span>
-            </span>
+            </div>
           ))}
         </div>
       </div>
