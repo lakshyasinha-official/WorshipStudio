@@ -55,27 +55,34 @@ const DEGREE_INFO = {
   // ── Major mode degrees ──────────────────────────────────
   'I'     : [0, ''],
   '♭II'   : [1, ''],
+  'II'    : [2, ''],
   'ii'    : [2, 'm'],
   '♭III'  : [3, ''],
+  'III'   : [4, ''],
   'iii'   : [4, 'm'],
   'IV'    : [5, ''],
   '♯IV'   : [6, ''],
   '♭V'    : [6, ''],
   'V'     : [7, ''],
   '♭VI'   : [8, ''],
+  'VI'    : [9, ''],
   'vi'    : [9, 'm'],
   '♭VII'  : [10, ''],
+  'VII'   : [11, ''],
   'vii°'  : [11, 'dim'],
 
   // ── Minor / Harmonic-minor mode degrees ─────────────────
   'i'      : [0, 'm'],
+  'I'      : [0, ''],
   '♭ii'    : [1, ''],
   'ii'     : [2, 'm'],
+  'II'     : [2, ''],
   'ii°'    : [2, 'dim'],
   '♭iii'   : [3, ''],
   'III'    : [3, ''],
   'iii'    : [4, 'm'],
   'iv'     : [5, 'm'],
+  'IV'     : [5, ''],
   '♯iv'    : [6, 'm'],
   '♭v'     : [6, ''],
   'v'      : [7, 'm'],
@@ -97,12 +104,38 @@ function scaleFor(key, quality) {
 
 /** Resolve a Roman-numeral degree to a real chord name, e.g. "vi" in G-Major → "Em". */
 export function resolveChord(degree, key, quality = 'Major') {
+  if (degree.includes('/')) {
+    const [basePart, bassPart] = degree.split('/')
+    const base = resolveChord(basePart, key, quality)
+    const bass = resolveBassNote(bassPart, key, quality)
+    if (base !== basePart || bass !== bassPart) {
+      return `${base}/${bass}`
+    }
+  }
   const scale = scaleFor(key, quality)
   if (!scale) return degree
   const info = DEGREE_INFO[degree]
   if (!info) return degree
   const [index, suffix] = info
   return scale[index] + suffix
+}
+
+function resolveBassNote(degree, key, quality) {
+  // Try degree map
+  const info = DEGREE_INFO[degree]
+  if (info) {
+    const scale = scaleFor(key, quality)
+    return scale ? scale[info[0]] : degree
+  }
+  // Try numeric 1-7
+  const num = parseInt(degree, 10)
+  if (!isNaN(num) && num >= 1 && num <= 7) {
+    const scale = scaleFor(key, quality)
+    if (!scale) return degree
+    const indexMap = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11 }
+    return scale[indexMap[num]]
+  }
+  return degree
 }
 
 /** Return degree list appropriate for a given quality (matches Android degreesForQuality). */

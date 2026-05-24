@@ -59,27 +59,34 @@ object ChordEngine {
         // ── Major mode degrees ──────────────────────────────────
         "I"     to Pair(0, ""),
         "♭II"   to Pair(1, ""),
+        "II"    to Pair(2, ""),
         "ii"    to Pair(2, "m"),
         "♭III"  to Pair(3, ""),
+        "III"   to Pair(4, ""),
         "iii"   to Pair(4, "m"),
         "IV"    to Pair(5, ""),
         "♯IV"   to Pair(6, ""),
         "♭V"    to Pair(6, ""),
         "V"     to Pair(7, ""),
         "♭VI"   to Pair(8, ""),
+        "VI"    to Pair(9, ""),
         "vi"    to Pair(9, "m"),
         "♭VII"  to Pair(10, ""),
+        "VII"   to Pair(11, ""),
         "vii°"  to Pair(11, "dim"),
 
         // ── Minor / Harmonic-minor mode degrees ─────────────────
         "i"      to Pair(0, "m"),
+        "I"      to Pair(0, ""),
         "♭ii"    to Pair(1, ""),
         "ii"     to Pair(2, "m"),
+        "II"     to Pair(2, ""),
         "ii°"    to Pair(2, "dim"),
         "♭iii"   to Pair(3, ""),
         "III"    to Pair(3, ""),
         "iii"    to Pair(4, "m"),
         "iv"     to Pair(5, "m"),
+        "IV"     to Pair(5, ""),
         "♯iv"    to Pair(6, "m"),
         "♭v"     to Pair(6, ""),
         "v"      to Pair(7, "m"),
@@ -97,10 +104,44 @@ object ChordEngine {
 
     /** Resolve a Roman-numeral degree to a real chord name (e.g. "vi" + G-major → "Em"). */
     fun resolveChord(degree: String, key: String, quality: String = "Major"): String {
+        if (degree.contains("/")) {
+            val parts = degree.split("/")
+            if (parts.size == 2) {
+                val base = resolveChord(parts[0], key, quality)
+                val bass = resolveBassNote(parts[1], key, quality)
+                if (base != parts[0] || bass != parts[1]) {
+                    return "$base/$bass"
+                }
+            }
+        }
         val scale = scaleFor(key, quality) ?: return degree
         val (index, suffix) = degreeInfo[degree] ?: return degree
         val note = scale[index]
         return "$note$suffix"
+    }
+
+    private fun resolveBassNote(degree: String, key: String, quality: String): String {
+        // Try degree map first
+        degreeInfo[degree]?.let { (index, _) ->
+            return scaleFor(key, quality)?.get(index) ?: degree
+        }
+        // Try numeric 1-7
+        val num = degree.toIntOrNull()
+        if (num != null && num in 1..7) {
+            val scale = scaleFor(key, quality) ?: return degree
+            val index = when (num) {
+                1 -> 0
+                2 -> 2
+                3 -> 4
+                4 -> 5
+                5 -> 7
+                6 -> 9
+                7 -> 11
+                else -> 0
+            }
+            return scale[index]
+        }
+        return degree
     }
 
     /** Move the key up or down by semitones. */
