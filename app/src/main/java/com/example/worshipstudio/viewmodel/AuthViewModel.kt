@@ -1,9 +1,12 @@
 package com.example.worshipstudio.viewmodel
 
+import android.os.SystemClock
+import android.util.Log
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.worshipstudio.repository.AuthRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,7 +22,9 @@ data class AuthState(
     val userId:      String  = "",
     val role:        String  = "member",
     /** Alert message waiting for the admin after a member resets their password. */
-    val adminAlert:  String? = null
+    val adminAlert:  String? = null,
+    /** True while a login has been running long enough to suggest a network problem. */
+    val slowNetwork: Boolean = false
 )
 
 class AuthViewModel : ViewModel() {
@@ -31,19 +36,36 @@ class AuthViewModel : ViewModel() {
     init {
         // Force re-login on every app start (multi-church: user picks church each time)
         if (repo.currentUser != null) repo.logout()
+        // Establish network connections to Firebase while the user is still on
+        // the login screen — on networks with broken IPv6 the first connection
+        // can stall for many seconds, better spent before the Login tap.
+        viewModelScope.launch { repo.warmUpConnections() }
     }
 
     // ── Login ─────────────────────────────────────────────────────────────────
     fun login(email: String, password: String, churchId: String) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.value = _state.value.copy(isLoading = true, error = null, slowNetwork = false)
+
+            // Surface a hint if login is taking abnormally long
+            val hintJob = launch {
+                delay(8_000)
+                if (_state.value.isLoading) {
+                    _state.value = _state.value.copy(slowNetwork = true)
+                }
+            }
+
+            val t0 = SystemClock.elapsedRealtime()
             val result = repo.login(email, password, churchId.trim().lowercase())
+            hintJob.cancel()
             if (result.isSuccess) {
-                loadMembership(email, churchId.trim().lowercase())
+                applyMembership(email, churchId.trim().lowercase(), result.getOrNull()?.membership)
+                Log.d("LoginPerf", "total login: ${SystemClock.elapsedRealtime() - t0} ms")
             } else {
                 _state.value = _state.value.copy(
-                    isLoading = false,
-                    error     = result.exceptionOrNull()?.message
+                    isLoading   = false,
+                    slowNetwork = false,
+                    error       = result.exceptionOrNull()?.message
                 )
             }
         }
@@ -137,10 +159,9 @@ class AuthViewModel : ViewModel() {
         _state.value = _state.value.copy(adminAlert = null)
     }
 
-    // ── Internal: load membership after login ─────────────────────────────────
-    private suspend fun loadMembership(email: String, churchId: String) {
+    // ── Internal: apply membership data fetched during login ──────────────────
+    private suspend fun applyMembership(email: String, churchId: String, data: Map<String, Any>?) {
         val displayName = email.substringBefore("@").replaceFirstChar { it.uppercase() }
-        val data = repo.getMembership(churchId)
         val role = data?.get("role") as? String ?: "member"
         val resolvedName = data?.get("displayName") as? String ?: displayName
         val userId = data?.get("userId") as? String ?: ""

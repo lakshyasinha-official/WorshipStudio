@@ -41,16 +41,12 @@ import com.example.worshipstudio.viewmodel.SettingsViewModel
 import com.example.worshipstudio.viewmodel.TagViewModel
 
 private val themeGradients = mapOf(
-    AppTheme.NIGHTFALL  to listOf(Color(0xFF0A0A18), Color(0xFF2D0060), Color(0xFF5D0080), Color(0xFFAA00AA)),
-    AppTheme.DAWN_MIST  to listOf(Color(0xFFFDF6EE), Color(0xFFFAE8D8), Color(0xFFF2D9E8), Color(0xFFE8D5F0)),
-    AppTheme.HOLY_LIGHT to listOf(Color(0xFFFAFCFF), Color(0xFFE8F3FF), Color(0xFFD6EAFF), Color(0xFFE9F5F0)),
-    AppTheme.SANCTUARY  to listOf(Color(0xFFFDFBF7), Color(0xFFEEF5EE), Color(0xFFE4EEF7), Color(0xFFEDE8F6))
+    AppTheme.NIGHTFALL to listOf(Color(0xFF0D1311), Color(0xFF10201A), Color(0xFF14291F), Color(0xFF1E4A38)),
+    AppTheme.DAWN_MIST to listOf(Color(0xFFF5FAF7), Color(0xFFEAF2ED), Color(0xFFDDEDE4), Color(0xFFCDEFE2))
 )
 private val themeAccents = mapOf(
-    AppTheme.NIGHTFALL  to Color(0xFFBB86FC),
-    AppTheme.DAWN_MIST  to Color(0xFFC4836C),
-    AppTheme.HOLY_LIGHT to Color(0xFF3A7FC1),
-    AppTheme.SANCTUARY  to Color(0xFF7A8CCC)
+    AppTheme.NIGHTFALL to Color(0xFF4EE0A0),
+    AppTheme.DAWN_MIST to Color(0xFF10B981)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

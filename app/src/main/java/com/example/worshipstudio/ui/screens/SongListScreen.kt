@@ -1,28 +1,28 @@
 package com.example.worshipstudio.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,48 +31,53 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Church
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -96,10 +101,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.worshipstudio.data.model.Song
 import com.example.worshipstudio.data.model.WorshipSet
+import com.example.worshipstudio.ui.theme.Mint
 import com.example.worshipstudio.utils.AppTheme
 import com.example.worshipstudio.utils.PdfExporter
 import com.example.worshipstudio.viewmodel.AuthViewModel
@@ -160,8 +167,6 @@ fun SongListScreen(
         selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
     }
 
-    // derivedStateOf: only recomposes dependants when the BOOLEAN value itself changes,
-    // not every time an unrelated auth/song field changes
     val isAdmin      by remember { derivedStateOf { authState.role == "admin" } }
     val filterActive by remember { derivedStateOf { songListState.activeTagId != null } }
 
@@ -177,6 +182,9 @@ fun SongListScreen(
     if (authState.adminAlert != null && isAdmin) {
         AlertDialog(
             onDismissRequest = { authViewModel.dismissAdminAlert() },
+            containerColor   = Mint.Card,
+            titleContentColor = Mint.TextPrimary,
+            textContentColor  = Mint.TextSecondary,
             title = { Text("🔑  Password Update") },
             text  = {
                 Text(
@@ -186,13 +194,17 @@ fun SongListScreen(
             },
             confirmButton = {
                 TextButton(onClick = { authViewModel.dismissAdminAlert() }) {
-                    Text("Got it")
+                    Text("Got it", color = Mint.Accent)
                 }
             }
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Mint.BgTop, Mint.BgBottom)))
+    ) {
 
         // ── Main scaffold ──────────────────────────────────────────────────────
         Scaffold(
@@ -201,6 +213,12 @@ fun SongListScreen(
                 if (selectionMode) {
                     // ── Selection mode top bar ──────────────────────────────
                     TopAppBar(
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor             = Color.Transparent,
+                            navigationIconContentColor = Mint.TextPrimary,
+                            titleContentColor          = Mint.TextPrimary,
+                            actionIconContentColor     = Mint.TextPrimary
+                        ),
                         navigationIcon = {
                             IconButton(onClick = { exitSelection() }) {
                                 Icon(Icons.Default.Close, "Cancel selection")
@@ -225,106 +243,41 @@ fun SongListScreen(
                                 IconButton(onClick = { overflowOpen = true }) {
                                     Icon(Icons.Default.MoreVert, "More options")
                                 }
-                                DropdownMenu(
-                                    expanded        = overflowOpen,
-                                    onDismissRequest = { overflowOpen = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Export as PDF") },
-                                        leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) },
-                                        enabled = selectedIds.isNotEmpty(),
-                                        onClick = {
-                                            overflowOpen = false
-                                            val toExport = songListState.songs
-                                                .filter { it.id in selectedIds }
-                                                .sortedBy { it.nameLowercase }
-                                            PdfExporter.exportAndShare(context, toExport)
-                                            exitSelection()
-                                        }
-                                    )
+                                MintMenuTheme {
+                                    DropdownMenu(
+                                        expanded         = overflowOpen,
+                                        onDismissRequest = { overflowOpen = false }
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Export as PDF") },
+                                            leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) },
+                                            enabled = selectedIds.isNotEmpty(),
+                                            onClick = {
+                                                overflowOpen = false
+                                                val toExport = songListState.songs
+                                                    .filter { it.id in selectedIds }
+                                                    .sortedBy { it.nameLowercase }
+                                                PdfExporter.exportAndShare(context, toExport)
+                                                exitSelection()
+                                            }
+                                        )
+                                    }
                                 }
                             }
+                            // Keep clear of the fixed chat button
+                            Spacer(Modifier.width(56.dp))
                         }
                     )
-                } else {
-                    // ── Normal top bar ──────────────────────────────────────
-                    TopAppBar(
-                        title = { Text(if (selectedTab == 0) "Songs" else "Sets") },
-                        actions = {
-                            // Sort / filter overflow — Songs tab only
-                            if (selectedTab == 0) {
-                                Box {
-                                    IconButton(onClick = { sortMenuOpen = true }) {
-                                        Icon(Icons.Default.Sort, "Sort & Filter")
-                                    }
-                                    DropdownMenu(
-                                        expanded         = sortMenuOpen,
-                                        onDismissRequest = { sortMenuOpen = false }
-                                    ) {
-                                        // Sort options
-                                        Text(
-                                            "Sort by",
-                                            style    = MaterialTheme.typography.labelSmall,
-                                            color    = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                        )
-                                        SortOrder.entries.forEach { order ->
-                                            DropdownMenuItem(
-                                                text = { Text(order.label) },
-                                                leadingIcon = {
-                                                    if (sortOrder == order)
-                                                        Icon(Icons.Default.CheckCircle, null,
-                                                            tint = MaterialTheme.colorScheme.primary)
-                                                    else
-                                                        Icon(Icons.Default.Sort, null,
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                },
-                                                onClick = { sortOrder = order; sortMenuOpen = false }
-                                            )
-                                        }
-                                        // Tag filters (if any exist)
-                                        if (tagState.tags.isNotEmpty()) {
-                                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                            Text(
-                                                "Filter by tag",
-                                                style    = MaterialTheme.typography.labelSmall,
-                                                color    = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                            )
-                                            DropdownMenuItem(
-                                                text = { Text("All tags") },
-                                                leadingIcon = {
-                                                    if (songListState.activeTagId == null)
-                                                        Icon(Icons.Default.CheckCircle, null,
-                                                            tint = MaterialTheme.colorScheme.primary)
-                                                    else
-                                                        Icon(Icons.Default.FilterList, null,
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                },
-                                                onClick = { songViewModel.filterByTag(null); sortMenuOpen = false }
-                                            )
-                                            tagState.tags.forEach { tag ->
-                                                DropdownMenuItem(
-                                                    text = { Text(tag.name) },
-                                                    leadingIcon = {
-                                                        if (songListState.activeTagId == tag.id)
-                                                            Icon(Icons.Default.CheckCircle, null,
-                                                                tint = MaterialTheme.colorScheme.primary)
-                                                        else
-                                                            Icon(Icons.Default.FilterList, null,
-                                                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                    },
-                                                    onClick = { songViewModel.filterByTag(tag.id); sortMenuOpen = false }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            IconButton(onClick = { drawerOpen = true }) {
-                                Icon(Icons.Default.Person, contentDescription = "Profile")
-                            }
-                        }
+                }
+            },
+            bottomBar = {
+                if (!selectionMode) {
+                    MintBottomNav(
+                        selectedTab = selectedTab,
+                        profileOpen = drawerOpen,
+                        onHome      = { selectedTab = 0 },
+                        onSets      = { selectedTab = 1 },
+                        onProfile   = { drawerOpen = true }
                     )
                 }
             },
@@ -333,93 +286,182 @@ fun SongListScreen(
                 // Sets tab  → everyone (members can create their own set lists)
                 val showFab = if (selectedTab == 0) isAdmin else true
                 if (showFab) {
-                    FloatingActionButton(onClick = if (selectedTab == 0) onAddSong else onCreateSet) {
+                    FloatingActionButton(
+                        onClick        = if (selectedTab == 0) onAddSong else onCreateSet,
+                        containerColor = Mint.Accent,
+                        contentColor   = Mint.OnAccent,
+                        shape          = RoundedCornerShape(20.dp)
+                    ) {
                         Icon(Icons.Default.Add, "Add")
                     }
                 }
             }
         ) { padding ->
             Column(modifier = Modifier.padding(padding)) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                        Text("Songs", modifier = Modifier.padding(12.dp))
+
+                // ── Header row: search + sort + profile ──────────────────────
+                if (!selectionMode) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (selectedTab == 0) {
+                            OutlinedTextField(
+                                value         = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                    songViewModel.searchSongs(authState.churchId, it)
+                                },
+                                placeholder   = {
+                                    Text("Search song library…", color = Mint.TextSecondary, fontSize = 14.sp)
+                                },
+                                leadingIcon   = {
+                                    Icon(Icons.Default.Search, null, tint = Mint.TextSecondary)
+                                },
+                                trailingIcon  = if (searchQuery.isNotEmpty()) ({
+                                    IconButton(onClick = {
+                                        searchQuery = ""
+                                        songViewModel.searchSongs(authState.churchId, "")
+                                    }) { Icon(Icons.Default.Close, "Clear", tint = Mint.TextSecondary) }
+                                }) else null,
+                                singleLine    = true,
+                                shape         = RoundedCornerShape(16.dp),
+                                colors        = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor        = Mint.TextPrimary,
+                                    unfocusedTextColor      = Mint.TextPrimary,
+                                    focusedBorderColor      = Mint.Accent.copy(alpha = 0.6f),
+                                    unfocusedBorderColor    = Mint.BorderField,
+                                    cursorColor             = Mint.Accent,
+                                    focusedContainerColor   = Mint.Field,
+                                    unfocusedContainerColor = Mint.Field
+                                ),
+                                modifier      = Modifier.weight(1f).height(54.dp)
+                            )
+
+                            // Sort / filter button
+                            Box {
+                                HeaderIconButton(
+                                    icon        = Icons.Default.Sort,
+                                    description = "Sort & Filter",
+                                    tint        = if (sortOrder != SortOrder.NAME_ASC || filterActive)
+                                                      Mint.Accent else Mint.TextSecondary
+                                ) { sortMenuOpen = true }
+                                MintMenuTheme {
+                                    DropdownMenu(
+                                        expanded         = sortMenuOpen,
+                                        onDismissRequest = { sortMenuOpen = false }
+                                    ) {
+                                        // Sort options
+                                        Text(
+                                            "Sort by",
+                                            style    = MaterialTheme.typography.labelSmall,
+                                            color    = Mint.Accent,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                        )
+                                        SortOrder.entries.forEach { order ->
+                                            DropdownMenuItem(
+                                                text = { Text(order.label) },
+                                                leadingIcon = {
+                                                    if (sortOrder == order)
+                                                        Icon(Icons.Default.CheckCircle, null, tint = Mint.Accent)
+                                                    else
+                                                        Icon(Icons.Default.Sort, null, tint = Mint.TextSecondary)
+                                                },
+                                                onClick = { sortOrder = order; sortMenuOpen = false }
+                                            )
+                                        }
+                                        // Tag filters (if any exist)
+                                        if (tagState.tags.isNotEmpty()) {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(vertical = 4.dp),
+                                                color    = Mint.BorderSubtle
+                                            )
+                                            Text(
+                                                "Filter by tag",
+                                                style    = MaterialTheme.typography.labelSmall,
+                                                color    = Mint.Accent,
+                                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("All tags") },
+                                                leadingIcon = {
+                                                    if (songListState.activeTagId == null)
+                                                        Icon(Icons.Default.CheckCircle, null, tint = Mint.Accent)
+                                                    else
+                                                        Icon(Icons.Default.FilterList, null, tint = Mint.TextSecondary)
+                                                },
+                                                onClick = { songViewModel.filterByTag(null); sortMenuOpen = false }
+                                            )
+                                            tagState.tags.forEach { tag ->
+                                                DropdownMenuItem(
+                                                    text = { Text(tag.name) },
+                                                    leadingIcon = {
+                                                        if (songListState.activeTagId == tag.id)
+                                                            Icon(Icons.Default.CheckCircle, null, tint = Mint.Accent)
+                                                        else
+                                                            Icon(Icons.Default.FilterList, null, tint = Mint.TextSecondary)
+                                                    },
+                                                    onClick = { songViewModel.filterByTag(tag.id); sortMenuOpen = false }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Text(
+                                "Worship Sets",
+                                fontSize   = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = Mint.TextPrimary,
+                                modifier   = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Space reserved for the fixed chat button overlay
+                        Spacer(Modifier.size(54.dp))
                     }
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
-                        Text("Sets", modifier = Modifier.padding(12.dp))
-                    }
+
+                    Spacer(Modifier.height(14.dp))
                 }
 
                 if (selectedTab == 0) {
-                    // ── Search bar — contacts-style full width ─────────────────────
-                    OutlinedTextField(
-                        value         = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            songViewModel.searchSongs(authState.churchId, it)
-                        },
-                        placeholder   = { Text("Search songs…") },
-                        leadingIcon   = { Icon(Icons.Default.Search, null) },
-                        trailingIcon  = if (searchQuery.isNotEmpty()) ({
-                            IconButton(onClick = {
-                                searchQuery = ""
-                                songViewModel.searchSongs(authState.churchId, "")
-                            }) { Icon(Icons.Default.Close, "Clear") }
-                        }) else null,
-                        singleLine    = true,
-                        shape         = RoundedCornerShape(28.dp),
-                        modifier      = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .height(52.dp),
-                        textStyle     = MaterialTheme.typography.bodyMedium
-                    )
 
-                    // ── Active filter chip ─────────────────────────────────────────
-                    if (filterActive) {
-                        val activeTag = tagState.tags.find { it.id == songListState.activeTagId }
-                        if (activeTag != null) {
-                            Row(
-                                modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                FilterChip(
-                                    selected = true,
-                                    onClick  = { songViewModel.filterByTag(null) },
-                                    label    = { Text(activeTag.name) },
-                                    trailingIcon = { Icon(Icons.Default.Close, "Remove filter", modifier = Modifier.size(14.dp)) },
-                                    colors   = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedLabelColor     = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
+                    // ── Active filter / sort indicator chips ──────────────────
+                    if (filterActive || sortOrder != SortOrder.NAME_ASC) {
+                        Row(
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (sortOrder != SortOrder.NAME_ASC) {
+                                IndicatorChip(
+                                    label = sortOrder.label,
+                                    icon  = Icons.Default.Sort
                                 )
+                            }
+                            if (filterActive) {
+                                val activeTag = tagState.tags.find { it.id == songListState.activeTagId }
+                                if (activeTag != null) {
+                                    IndicatorChip(
+                                        label     = activeTag.name,
+                                        icon      = Icons.Default.FilterList,
+                                        onRemove  = { songViewModel.filterByTag(null) }
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // ── Sort indicator row ─────────────────────────────────────────
-                    if (sortOrder != SortOrder.NAME_ASC) {
-                        Row(
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(Icons.Default.Sort, null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.primary)
-                            Text(
-                                sortOrder.label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    // ── Song list ──────────────────────────────────────────────────
+                    // ── Song list ──────────────────────────────────────────────
                     if (songListState.isLoading) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Mint.Accent)
+                        }
                     } else {
-                        // Apply sort client-side
                         val sortedSongs = remember(songListState.songs, sortOrder) {
                             when (sortOrder) {
                                 SortOrder.NAME_ASC  -> songListState.songs.sortedBy { it.nameLowercase }
@@ -445,16 +487,25 @@ fun SongListScreen(
                             onDelete        = { song ->
                                 songDelete = song
                                 showDeleteDialog = true
-                                }
+                            }
                         )
                     }
                 } else {
                     if (setListState.isLoading) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Mint.Accent)
+                        }
+                    } else if (setListState.sets.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No sets yet.", color = Mint.TextSecondary)
+                        }
                     } else {
-                        LazyColumn {
-                            items(setListState.sets, key = { it.id }) { set ->
-                                SetItem(
+                        LazyColumn(
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(setListState.sets, key = { it.id }, contentType = { "set" }) { set ->
+                                SetCard(
                                     set      = set,
                                     isAdmin  = isAdmin,
                                     onClick  = { onSetClick(set.id) },
@@ -495,12 +546,15 @@ fun SongListScreen(
                 shape           = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp)
             ) {
                 ProfileDrawerContent(
-                    displayName  = authState.displayName,
-                    churchId     = authState.churchId,
-                    role         = authState.role,
-                    currentTheme = currentTheme,
-                    onSettings   = { drawerOpen = false; onSettings() },
-                    onLogout     = { drawerOpen = false; onLogout() }
+                    displayName = authState.displayName,
+                    email       = authState.email,
+                    churchId    = authState.churchId,
+                    role        = authState.role,
+                    songCount   = songListState.songs.size,
+                    setCount    = setListState.sets.size,
+                    tagCount    = tagState.tags.size,
+                    onSettings  = { drawerOpen = false; onSettings() },
+                    onLogout    = { drawerOpen = false; onLogout() }
                 )
             }
         }
@@ -522,11 +576,15 @@ fun SongListScreen(
                     .padding(16.dp)
             ) {
                 Surface(
-                    shape     = RoundedCornerShape(20.dp),
-                    color     = if (sessionGone) MaterialTheme.colorScheme.errorContainer
-                                else MaterialTheme.colorScheme.primaryContainer,
+                    shape           = RoundedCornerShape(20.dp),
+                    color           = Mint.Card,
+                    border          = BorderStroke(
+                        1.dp,
+                        if (sessionGone) Mint.Error.copy(alpha = 0.5f)
+                        else             Mint.Accent.copy(alpha = 0.5f)
+                    ),
                     shadowElevation = 8.dp,
-                    modifier  = Modifier.fillMaxWidth()
+                    modifier        = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -534,17 +592,13 @@ fun SongListScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             androidx.compose.foundation.Canvas(Modifier.size(8.dp)) {
-                                drawCircle(
-                                    if (sessionGone) androidx.compose.ui.graphics.Color(0xFFEF5350)
-                                    else             androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                                )
+                                drawCircle(if (sessionGone) Mint.Error else Mint.Accent)
                             }
                             Text(
                                 text  = if (sessionGone) "Session has already ended"
                                         else push.adminName.ifEmpty { "Admin" } + " started a session",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (sessionGone) MaterialTheme.colorScheme.onErrorContainer
-                                        else MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (sessionGone) Mint.Error else Mint.TextSecondary
                             )
                         }
                         if (!sessionGone) {
@@ -553,7 +607,7 @@ fun SongListScreen(
                                 text       = push.songName,
                                 style      = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color      = MaterialTheme.colorScheme.onPrimaryContainer
+                                color      = Mint.TextPrimary
                             )
                         }
                         Spacer(Modifier.height(12.dp))
@@ -576,16 +630,26 @@ fun SongListScreen(
                                         )
                                     },
                                     enabled  = !joinValidating,
+                                    colors   = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = Mint.Accent,
+                                        contentColor   = Mint.OnAccent
+                                    ),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    if (joinValidating) CircularProgressIndicator(Modifier.size(16.dp))
-                                    else Text("Join Now")
+                                    if (joinValidating) CircularProgressIndicator(
+                                        Modifier.size(16.dp), color = Mint.OnAccent
+                                    )
+                                    else Text("Join Now", fontWeight = FontWeight.Bold)
                                 }
                             }
                             androidx.compose.material3.OutlinedButton(
                                 onClick  = { sessionViewModel?.dismissChurchPush(authState.churchId) },
+                                border   = BorderStroke(1.dp, Mint.BorderField),
+                                colors   = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Mint.TextSecondary
+                                ),
                                 modifier = Modifier.weight(1f)
-                            ) { Text(if (sessionGone) "Dismiss" else "Dismiss") }
+                            ) { Text("Dismiss") }
                         }
                     }
                 }
@@ -597,32 +661,25 @@ fun SongListScreen(
                     showDeleteDialog = false
                     songDelete = null
                 },
-
-                title = {
-                    Text("Delete Song")
-                },
-
-                text = {
-                    Text("Are you sure you want to delete this song?")
-                },
-
+                containerColor    = Mint.Card,
+                titleContentColor = Mint.TextPrimary,
+                textContentColor  = Mint.TextSecondary,
+                title = { Text("Delete Song") },
+                text  = { Text("Are you sure you want to delete this song?") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-
                             songViewModel.deleteSong(
                                 songId = songDelete!!.id,
                                 churchId = authState.churchId
                             )
-
                             showDeleteDialog = false
                             songDelete = null
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = Mint.Error)
                     }
                 },
-
                 dismissButton = {
                     TextButton(
                         onClick = {
@@ -630,7 +687,7 @@ fun SongListScreen(
                             songDelete = null
                         }
                     ) {
-                        Text("Cancel")
+                        Text("Cancel", color = Mint.TextSecondary)
                     }
                 }
             )
@@ -638,184 +695,287 @@ fun SongListScreen(
     }
 }
 
-// ── Theme-aware colour set for the sidebar ────────────────────────────────────
-private data class DrawerColors(
-    val bgTop:      Color,
-    val bgBottom:   Color,
-    val text:       Color,
-    val subText:    Color,
-    val accent:     Color,
-    val cardBg:     Color,
-    val divider:    Color,
-    val logoutBg:   Color,
-    val logoutText: Color
-)
-
-private fun drawerColorsForTheme(theme: AppTheme) = when (theme) {
-    AppTheme.NIGHTFALL  -> DrawerColors(
-        bgTop      = Color(0xFF0A0A18),
-        bgBottom   = Color(0xFF2D0060),
-        text       = Color.White,
-        subText    = Color.White.copy(alpha = 0.50f),
-        accent     = Color(0xFFBB86FC),
-        cardBg     = Color.White.copy(alpha = 0.07f),
-        divider    = Color.White.copy(alpha = 0.10f),
-        logoutBg   = Color(0xFFFF6B6B).copy(alpha = 0.13f),
-        logoutText = Color(0xFFFF6B6B)
-    )
-    AppTheme.DAWN_MIST  -> DrawerColors(
-        bgTop      = Color(0xFFFDF6EE),
-        bgBottom   = Color(0xFFF2D9E8),
-        text       = Color(0xFF2D1208),
-        subText    = Color(0xFF2D1208).copy(alpha = 0.50f),
-        accent     = Color(0xFFC4836C),
-        cardBg     = Color(0xFF000000).copy(alpha = 0.05f),
-        divider    = Color(0xFF000000).copy(alpha = 0.08f),
-        logoutBg   = Color(0xFFB00020).copy(alpha = 0.08f),
-        logoutText = Color(0xFFB00020)
-    )
-    AppTheme.HOLY_LIGHT -> DrawerColors(
-        bgTop      = Color(0xFFE8F3FF),
-        bgBottom   = Color(0xFFD6EAFF),
-        text       = Color(0xFF0D2137),
-        subText    = Color(0xFF0D2137).copy(alpha = 0.50f),
-        accent     = Color(0xFF3A7FC1),
-        cardBg     = Color(0xFF000000).copy(alpha = 0.05f),
-        divider    = Color(0xFF000000).copy(alpha = 0.08f),
-        logoutBg   = Color(0xFFB00020).copy(alpha = 0.08f),
-        logoutText = Color(0xFFB00020)
-    )
-    AppTheme.SANCTUARY  -> DrawerColors(
-        bgTop      = Color(0xFFFDFBF7),
-        bgBottom   = Color(0xFFEDE8F6),
-        text       = Color(0xFF1C2130),
-        subText    = Color(0xFF1C2130).copy(alpha = 0.50f),
-        accent     = Color(0xFF7A8CCC),
-        cardBg     = Color(0xFF000000).copy(alpha = 0.05f),
-        divider    = Color(0xFF000000).copy(alpha = 0.08f),
-        logoutBg   = Color(0xFFB00020).copy(alpha = 0.08f),
-        logoutText = Color(0xFFB00020)
+// ── Dark menu container regardless of the active app theme ────────────────────
+@Composable
+private fun MintMenuTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme.copy(
+            surface          = Mint.Card,
+            surfaceContainer = Mint.Card,
+            onSurface        = Mint.TextPrimary,
+            onSurfaceVariant = Mint.TextSecondary
+        ),
+        typography = MaterialTheme.typography,
+        content    = content
     )
 }
 
-// ── Profile drawer content ────────────────────────────────────────────────────
+// ── Small square icon button used in the header row ───────────────────────────
+@Composable
+private fun HeaderIconButton(
+    icon:        ImageVector,
+    description: String,
+    tint:        Color = Mint.TextPrimary,
+    onClick:     () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape   = RoundedCornerShape(16.dp),
+        color   = Mint.Field,
+        border  = BorderStroke(1.dp, Mint.BorderSubtle),
+        modifier = Modifier.size(54.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, description, tint = tint, modifier = Modifier.size(24.dp))
+        }
+    }
+}
+
+// ── Bottom navigation bar — Home · Sets · Profile ─────────────────────────────
+@Composable
+private fun MintBottomNav(
+    selectedTab: Int,
+    profileOpen: Boolean,
+    onHome:      () -> Unit,
+    onSets:      () -> Unit,
+    onProfile:   () -> Unit
+) {
+    Surface(color = Mint.Card) {
+        Column {
+            HorizontalDivider(color = Mint.BorderSubtle)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(top = 8.dp, bottom = 10.dp)
+            ) {
+                BottomNavItem(Icons.Outlined.Home, "Home",
+                    selected = selectedTab == 0 && !profileOpen,
+                    modifier = Modifier.weight(1f), onClick = onHome)
+                BottomNavItem(Icons.Outlined.CalendarMonth, "Sets",
+                    selected = selectedTab == 1 && !profileOpen,
+                    modifier = Modifier.weight(1f), onClick = onSets)
+                BottomNavItem(Icons.Outlined.Person, "Profile",
+                    selected = profileOpen,
+                    modifier = Modifier.weight(1f), onClick = onProfile)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    icon:     ImageVector,
+    label:    String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick:  () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+            .padding(vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon, label,
+            tint = if (selected) Mint.Accent else Mint.TextSecondary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            label,
+            fontSize   = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color      = if (selected) Mint.Accent else Mint.TextSecondary
+        )
+    }
+}
+
+// ── Active sort / filter indicator chip ────────────────────────────────────────
+@Composable
+private fun IndicatorChip(
+    label:    String,
+    icon:     ImageVector,
+    onRemove: (() -> Unit)? = null
+) {
+    Surface(
+        shape  = RoundedCornerShape(50),
+        color  = Mint.Accent.copy(alpha = 0.14f),
+        border = BorderStroke(1.dp, Mint.Accent.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(icon, null, tint = Mint.Accent, modifier = Modifier.size(13.dp))
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Mint.Accent)
+            if (onRemove != null) {
+                Icon(
+                    Icons.Default.Close, "Remove filter",
+                    tint = Mint.Accent,
+                    modifier = Modifier.size(13.dp).clickable { onRemove() }
+                )
+            }
+        }
+    }
+}
+
+// ── Profile drawer content — mint profile page ────────────────────────────────
 @Composable
 private fun ProfileDrawerContent(
-    displayName:  String,
-    churchId:     String,
-    role:         String,
-    currentTheme: AppTheme = AppTheme.NIGHTFALL,
-    onSettings:   () -> Unit,
-    onLogout:     () -> Unit
+    displayName: String,
+    email:       String,
+    churchId:    String,
+    role:        String,
+    songCount:   Int,
+    setCount:    Int,
+    tagCount:    Int,
+    onSettings:  () -> Unit,
+    onLogout:    () -> Unit
 ) {
     val isAdmin = role == "admin"
     val initial = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?"
-    // Memoize: drawerColorsForTheme only changes when the theme changes
-    val dc      = remember(currentTheme) { drawerColorsForTheme(currentTheme) }
-    // Memoize: Brush object creation is non-trivial; stable until theme changes
-    val bgBrush = remember(dc.bgTop, dc.bgBottom) {
-        Brush.verticalGradient(listOf(dc.bgTop, dc.bgBottom))
-    }
 
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .background(bgBrush)
+            .background(Brush.verticalGradient(listOf(Color(0xFF10201A), Mint.BgBottom)))
     ) {
-        Column(modifier = Modifier.fillMaxHeight()) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState())
+        ) {
 
             // ── Avatar + name block ───────────────────────────────────────────
             Column(
                 modifier            = Modifier
                     .fillMaxWidth()
-                    .padding(top = 56.dp, bottom = 28.dp),
+                    .padding(top = 56.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar circle
-                Box(
-                    modifier = Modifier
-                        .size(84.dp)
-                        .clip(CircleShape)
-                        .background(dc.accent.copy(alpha = 0.25f))
-                        .border(2.dp, dc.accent.copy(alpha = 0.60f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(initial, fontSize = 36.sp, fontWeight = FontWeight.Bold, color = dc.accent)
+                // Avatar circle with mint ring + role badge
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                            .background(Mint.Accent.copy(alpha = 0.15f))
+                            .border(2.5.dp, Mint.Accent, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(initial, fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Mint.Accent)
+                    }
+                    if (isAdmin) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(Mint.Accent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Verified, "Admin",
+                                tint = Mint.OnAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
                 Text(
                     displayName.ifBlank { "User" },
-                    fontSize   = 20.sp,
+                    fontSize   = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = dc.text
+                    color      = Mint.TextPrimary
                 )
-                Spacer(Modifier.height(6.dp))
-                // Role pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(dc.accent.copy(alpha = 0.18f))
-                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                if (email.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(email, fontSize = 13.sp, color = Mint.TextSecondary)
+                }
+                Spacer(Modifier.height(12.dp))
+                // Role pill — indigo, like the mockup's "Premium Member"
+                Surface(
+                    shape  = RoundedCornerShape(50),
+                    color  = Mint.IndigoBg,
+                    border = BorderStroke(1.dp, Mint.Indigo.copy(alpha = 0.4f))
                 ) {
                     Text(
-                        role.replaceFirstChar { it.uppercase() },
-                        style      = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color      = dc.accent
+                        if (isAdmin) "Admin" else "Member",
+                        fontSize   = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = Mint.Indigo,
+                        modifier   = Modifier.padding(horizontal = 18.dp, vertical = 7.dp)
                     )
                 }
             }
 
-            // ── Info card ─────────────────────────────────────────────────────
-            Box(
+            // ── Stat tiles ────────────────────────────────────────────────────
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(dc.cardBg)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column {
-                    DrawerInfoRow(icon = Icons.Default.Person,   label = "Name",   value = displayName.ifBlank { "—" }, dc = dc)
-                    HorizontalDivider(color = dc.divider)
-                    DrawerInfoRow(icon = Icons.Default.Settings, label = "Church", value = churchId.ifBlank { "—" }, dc = dc)
-                }
+                StatTile(songCount.toString(), "SONGS", Modifier.weight(1f))
+                StatTile(setCount.toString(),  "SETS",  Modifier.weight(1f))
+                StatTile(tagCount.toString(),  "TAGS",  Modifier.weight(1f))
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // ── Action buttons ────────────────────────────────────────────────
-            Box(
+            // ── Preferences ───────────────────────────────────────────────────
+            Text(
+                "Preferences",
+                fontSize   = 17.sp,
+                fontWeight = FontWeight.Bold,
+                color      = Mint.TextPrimary,
+                modifier   = Modifier.padding(horizontal = 20.dp)
+            )
+            Spacer(Modifier.height(10.dp))
+
+            Surface(
+                shape  = RoundedCornerShape(18.dp),
+                color  = Mint.Card,
+                border = BorderStroke(1.dp, Mint.BorderSubtle),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(dc.cardBg)
             ) {
                 Column {
-                    DrawerActionRow(
-                        icon    = Icons.Default.Settings,
-                        label   = "Settings",
-                        color   = dc.text,
-                        onClick = onSettings
-                    )
+                    DrawerInfoRow(Icons.Default.Person, "Name", displayName.ifBlank { "—" })
+                    HorizontalDivider(color = Mint.BorderSubtle)
+                    DrawerInfoRow(Icons.Outlined.Church, "Church", churchId.ifBlank { "—" })
+                    HorizontalDivider(color = Mint.BorderSubtle)
+                    DrawerPrefRow(Icons.Default.Settings, "Settings", onClick = onSettings)
                 }
             }
 
             Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
 
             // ── Sign out ──────────────────────────────────────────────────────
-            Box(
+            Surface(
+                shape  = RoundedCornerShape(18.dp),
+                color  = Mint.Error.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, Mint.Error.copy(alpha = 0.3f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(dc.logoutBg)
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable { onLogout() }
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = dc.logoutText, modifier = Modifier.size(20.dp))
-                    Text("Sign Out", fontWeight = FontWeight.SemiBold, color = dc.logoutText)
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, null, tint = Mint.Error, modifier = Modifier.size(20.dp))
+                    Text("Sign Out", fontWeight = FontWeight.SemiBold, color = Mint.Error)
                 }
             }
             Spacer(Modifier.height(32.dp))
@@ -823,58 +983,84 @@ private fun ProfileDrawerContent(
     }
 }
 
+// ── Stat tile (mockup-style: big mint number, small caps label) ───────────────
 @Composable
-private fun DrawerInfoRow(icon: ImageVector, label: String, value: String, dc: DrawerColors) {
-    Row(
-        modifier          = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+private fun StatTile(value: String, label: String, modifier: Modifier = Modifier) {
+    Surface(
+        shape  = RoundedCornerShape(16.dp),
+        color  = Mint.Card,
+        border = BorderStroke(1.dp, Mint.BorderSubtle),
+        modifier = modifier
     ) {
-        Icon(icon, null, tint = dc.subText, modifier = Modifier.size(16.dp))
-        Column {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = dc.subText)
-            Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = dc.text)
+        Column(
+            modifier = Modifier.padding(vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Mint.Accent)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                label,
+                fontSize      = 10.sp,
+                fontWeight    = FontWeight.Medium,
+                letterSpacing = 1.5.sp,
+                color         = Mint.TextSecondary,
+                textAlign     = TextAlign.Center
+            )
         }
     }
 }
 
 @Composable
-private fun DrawerActionRow(
-    icon: ImageVector,
-    label: String,
-    color: Color,
-    onClick: () -> Unit
-) {
+private fun DrawerInfoRow(icon: ImageVector, label: String, value: String) {
     Row(
-        modifier          = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier          = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(icon, null, tint = color.copy(alpha = 0.75f), modifier = Modifier.size(20.dp))
-        Text(label, fontWeight = FontWeight.Medium, color = color)
+        DrawerIconTile(icon)
+        Column {
+            Text(label, fontSize = 11.sp, color = Mint.TextSecondary)
+            Text(value, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Mint.TextPrimary)
+        }
     }
 }
 
 @Composable
-private fun ProfileInfoRow(label: String, value: String) {
+private fun DrawerPrefRow(icon: ImageVector, label: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
+        modifier          = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        DrawerIconTile(icon)
         Text(
             label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            value,
-            style      = MaterialTheme.typography.bodyMedium,
+            fontSize   = 15.sp,
             fontWeight = FontWeight.Medium,
-            color      = MaterialTheme.colorScheme.onSurface
+            color      = Mint.TextPrimary,
+            modifier   = Modifier.weight(1f)
         )
+        Icon(
+            Icons.Default.ChevronRight, null,
+            tint = Mint.TextSecondary,
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun DrawerIconTile(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(Mint.Field),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, tint = Mint.Accent, modifier = Modifier.size(19.dp))
     }
 }
 
@@ -893,7 +1079,7 @@ private fun AlphabeticalSongList(
 ) {
     if (songs.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No songs found.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("No songs found.", color = Mint.TextSecondary)
         }
         return
     }
@@ -911,26 +1097,12 @@ private fun AlphabeticalSongList(
 
         LazyColumn(
             modifier       = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(0.dp)
+            contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
         ) {
             groupKeys.forEach { key ->
-                stickyHeader(key = "hdr_$key") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.93f))
-                            .padding(horizontal = 16.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text       = key,
-                            style      = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color      = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                items(grouped[key] ?: emptyList(), key = { it.id }) { song ->
-                    SongItem(
+                stickyHeader(key = "hdr_$key") { LetterHeader(key) }
+                items(grouped[key] ?: emptyList(), key = { it.id }, contentType = { "song" }) { song ->
+                    SongCard(
                         song          = song,
                         isAdmin       = isAdmin,
                         selectionMode = selectionMode,
@@ -946,8 +1118,6 @@ private fun AlphabeticalSongList(
     }
 
     // ── NAME_ASC / NAME_DESC: alphabetical grouping with sidebar ─────────────
-    // Group alphabetically; non-letter starts go in '#' at the end.
-    // Uses pre-stored nameLowercase to avoid per-comparison string allocations.
     val grouped = remember(songs, sortOrder) {
         when (sortOrder) {
             SortOrder.NAME_DESC -> {
@@ -974,8 +1144,6 @@ private fun AlphabeticalSongList(
     }
     val letters = remember(grouped) { grouped.keys.toList() }
     // CRITICAL: memoize the set so pointerInput key is stable across recompositions.
-    // Without this, every recomposition (e.g. bubble show/hide) creates a new Set,
-    // causing the gesture coroutine to cancel+restart → visible jank.
     val availableLettersSet = remember(letters) { letters.toSet() }
 
     // Map each letter → its start index in the flat LazyColumn item list
@@ -1009,26 +1177,12 @@ private fun AlphabeticalSongList(
         LazyColumn(
             state          = listState,
             modifier       = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(end = 26.dp)  // room for side bar
+            contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp)
         ) {
             letters.forEach { letter ->
-                stickyHeader(key = "hdr_$letter") {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.93f))
-                            .padding(horizontal = 16.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text       = letter.toString(),
-                            style      = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color      = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                items(grouped[letter] ?: emptyList(), key = { it.id }) { song ->
-                    SongItem(
+                stickyHeader(key = "hdr_$letter") { LetterHeader(letter.toString()) }
+                items(grouped[letter] ?: emptyList(), key = { it.id }, contentType = { "song" }) { song ->
+                    SongCard(
                         song          = song,
                         isAdmin       = isAdmin,
                         selectionMode = selectionMode,
@@ -1043,16 +1197,6 @@ private fun AlphabeticalSongList(
 
         // ── Side A–Z bar (only when 2+ letter groups) ─────────────────────────
         if (letters.size > 1) {
-            // Barely-visible tap affordance — matches Android contacts scrollbar style
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 1.dp)
-                    .width(2.dp)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.13f))
-            )
             AlphabetSideBar(
                 availableLetters = availableLettersSet,
                 modifier         = Modifier
@@ -1079,17 +1223,35 @@ private fun AlphabeticalSongList(
                 modifier         = Modifier
                     .size(72.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(Mint.Accent),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text       = bubbleLetter?.toString() ?: "",
                     style      = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.onPrimary
+                    color      = Mint.OnAccent
                 )
             }
         }
+    }
+}
+
+// ── Sticky letter / key header ─────────────────────────────────────────────────
+@Composable
+private fun LetterHeader(label: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Mint.BgTop.copy(alpha = 0.95f))
+            .padding(horizontal = 20.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text       = label,
+            fontSize   = 14.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color      = Mint.Accent
+        )
     }
 }
 
@@ -1117,7 +1279,7 @@ private fun AlphabetSideBar(
         modifier = modifier
             .alpha(alpha)
             .background(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                color = Mint.Card.copy(alpha = 0.92f),
                 shape = RoundedCornerShape(12.dp)
             )
             .pointerInput(availableLetters) {
@@ -1156,14 +1318,14 @@ private fun AlphabetSideBar(
                     text       = letter.toString(),
                     fontSize   = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color      = MaterialTheme.colorScheme.primary,
+                    color      = Mint.Accent,
                     modifier   = Modifier.padding(horizontal = 5.dp)
                 )
             } else {
                 Text(
                     text      = "·",
                     fontSize  = 7.sp,
-                    color     = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.30f),
+                    color     = Mint.TextSecondary.copy(alpha = 0.40f),
                     modifier  = Modifier.padding(horizontal = 5.dp),
                     textAlign = TextAlign.Center
                 )
@@ -1172,10 +1334,43 @@ private fun AlphabetSideBar(
     }
 }
 
+// ── Small badge pills used inside cards ────────────────────────────────────────
+@Composable
+private fun KeyBadge(text: String) {
+    Surface(shape = RoundedCornerShape(8.dp), color = Mint.IndigoBg) {
+        Text(
+            text       = text,
+            fontSize   = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color      = Mint.Indigo,
+            modifier   = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        )
+    }
+}
+
+@Composable
+private fun InfoBadge(icon: ImageVector, text: String) {
+    Surface(shape = RoundedCornerShape(8.dp), color = Mint.Field) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(icon, null, tint = Mint.TextSecondary, modifier = Modifier.size(12.dp))
+            Text(
+                text       = text,
+                fontSize   = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color      = Mint.TextSecondary
+            )
+        }
+    }
+}
+
 // ── List items ────────────────────────────────────────────────────────────────
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SongItem(
+private fun SongCard(
     song:          Song,
     isAdmin:       Boolean,
     selectionMode: Boolean = false,
@@ -1184,51 +1379,99 @@ private fun SongItem(
     onLongClick:   () -> Unit = {},
     onDelete:      () -> Unit
 ) {
-    val bgColor = if (isSelected)
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-    else
-        Color.Transparent
-
-    ListItem(
-        headlineContent = { Text(song.name) },
-        supportingContent = {
-            val subtitle = if (song.parts.isNotEmpty())
-                "${song.rootKey} ${song.keyQuality}  •  ${song.parts.size} sections"
-            else
-                "${song.rootKey} ${song.keyQuality}"
-            Text(subtitle)
-        },
-        leadingContent = if (selectionMode) ({
-            Icon(
-                imageVector = if (isSelected) Icons.Default.CheckBox
-                              else            Icons.Default.CheckBoxOutlineBlank,
-                contentDescription = null,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }) else null,
-        trailingContent = if (isAdmin && !selectionMode) ({
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete") }
-        }) else null,
+    Surface(
+        shape  = RoundedCornerShape(20.dp),
+        color  = Mint.Card,
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) Mint.Accent.copy(alpha = 0.6f) else Mint.BorderSubtle
+        ),
         modifier = Modifier
-            .background(bgColor)
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(20.dp))
             .combinedClickable(
                 onClick     = onClick,
                 onLongClick = onLongClick
             )
-    )
-    HorizontalDivider()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (selectionMode) {
+                Icon(
+                    imageVector = if (isSelected) Icons.Outlined.CheckCircle
+                                  else            Icons.Outlined.Circle,
+                    contentDescription = null,
+                    tint = if (isSelected) Mint.Accent else Mint.TextSecondary
+                )
+                Spacer(Modifier.width(14.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text       = song.name,
+                    fontSize   = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = Mint.TextPrimary,
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    KeyBadge("${song.rootKey} ${song.keyQuality}".uppercase())
+                    if (song.parts.isNotEmpty()) {
+                        InfoBadge(Icons.Default.MusicNote, "${song.parts.size} sections")
+                    }
+                }
+            }
+            if (isAdmin && !selectionMode) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Outlined.Delete, "Delete", tint = Mint.TextSecondary)
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun SetItem(set: WorshipSet, isAdmin: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
-    ListItem(
-        headlineContent    = { Text(set.name) },
-        supportingContent  = { Text("${set.songs.size} songs  •  ${set.date}") },
-        trailingContent    = if (isAdmin) ({
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete") }
-        }) else null,
-        modifier = Modifier.clickable { onClick() }
-    )
-    HorizontalDivider()
+private fun SetCard(set: WorshipSet, isAdmin: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+    Surface(
+        shape  = RoundedCornerShape(20.dp),
+        color  = Mint.Card,
+        border = BorderStroke(1.dp, Mint.BorderSubtle),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text       = set.name,
+                    fontSize   = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = Mint.TextPrimary,
+                    maxLines   = 2,
+                    overflow   = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InfoBadge(Icons.Default.MusicNote, "${set.songs.size} songs")
+                    if (set.date.isNotBlank()) {
+                        KeyBadge(set.date)
+                    }
+                }
+            }
+            if (isAdmin) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Outlined.Delete, "Delete", tint = Mint.TextSecondary)
+                }
+            }
+        }
+    }
 }

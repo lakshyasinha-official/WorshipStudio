@@ -1,11 +1,11 @@
 package com.example.worshipstudio.utils
 
+// Enum names kept from the old 4-theme system so stored preferences
+// keep working; ThemeStore falls back to NIGHTFALL for removed values.
 enum class AppTheme(
     val displayName: String,
     val subtitle: String
 ) {
-    NIGHTFALL("Nightfall",   "Purple · Blue · Dark"),
-    DAWN_MIST("Dawn Mist",   "Ivory · Peach · Blush"),
-    HOLY_LIGHT("Holy Light", "Sky Blue · White · Sage"),
-    SANCTUARY("Sanctuary",   "Cream · Sage · Lavender")
+    NIGHTFALL("Neon",  "Mint · Charcoal"),
+    DAWN_MIST("Light", "Mint · Ivory")
 }

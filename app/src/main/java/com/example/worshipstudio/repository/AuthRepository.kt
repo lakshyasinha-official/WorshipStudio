@@ -1,5 +1,7 @@
 package com.example.worshipstudio.repository
 
+import android.os.SystemClock
+import android.util.Log
 import com.example.worshipstudio.repository.MemberRepository
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
+private const val PERF_TAG = "LoginPerf"
+
 class AuthRepository {
     private val auth           = FirebaseAuth.getInstance()
     private val firestore      = FirebaseFirestore.getInstance()
@@ -24,6 +28,24 @@ class AuthRepository {
 
     // ── Encode email for use as Firebase RTDB key (. is not allowed) ──────────
     private fun encodeEmail(email: String) = email.trim().lowercase().replace(".", ",")
+
+    // ── Warm up network connections to Firebase backends ──────────────────────
+    // On networks with broken IPv6, the first TCP connection to each Google
+    // backend stalls until IPv6 attempts time out. Doing throwaway requests at
+    // startup pays that cost while the user is still on the login screen, so
+    // the actual login reuses the already-established connections.
+    suspend fun warmUpConnections() {
+        val t = SystemClock.elapsedRealtime()
+        // Firestore: opens the gRPC channel (result irrelevant)
+        try {
+            firestore.collection("churches").document("__warmup__").get().await()
+        } catch (_: Exception) { }
+        // Auth REST endpoint: establishes the HTTPS connection pool
+        try {
+            auth.fetchSignInMethodsForEmail("warmup@example.com").await()
+        } catch (_: Exception) { }
+        Log.d(PERF_TAG, "warm-up finished in ${SystemClock.elapsedRealtime() - t} ms")
+    }
 
     // ── Forgot password: send Firebase reset link + flag the reset ────────────
     suspend fun requestPasswordReset(email: String, churchId: String): Result<Unit> {
@@ -107,21 +129,39 @@ class AuthRepository {
 
     val currentUser: FirebaseUser? get() = auth.currentUser
 
+    /** User + membership data returned from a successful login (single fetch). */
+    data class LoginResult(val user: FirebaseUser, val membership: Map<String, Any>?)
+
     // ── Login ─────────────────────────────────────────────────────────────────
-    suspend fun login(email: String, password: String, churchId: String): Result<FirebaseUser> {
+    suspend fun login(email: String, password: String, churchId: String): Result<LoginResult> {
         val church = churchId.trim().lowercase()
         return try {
+            var t = SystemClock.elapsedRealtime()
             val result = auth.signInWithEmailAndPassword(email.trim(), password).await()
-            val user   = result.user!!
+            Log.d(PERF_TAG, "signInWithEmailAndPassword: ${SystemClock.elapsedRealtime() - t} ms")
+            val user = result.user!!
 
+            t = SystemClock.elapsedRealtime()
             val membershipId = "${user.uid}_${church}"
-            val doc = firestore.collection("memberships").document(membershipId).get().await()
+            // Cache-first: on slow networks the server round-trip can stall for
+            // 10s+ before Firestore falls back to cache on its own. Membership
+            // rarely changes, and Firestore security rules remain the real
+            // boundary, so a cached copy is fine for gating the UI.
+            val ref = firestore.collection("memberships").document(membershipId)
+            val doc = try {
+                val cached = ref.get(com.google.firebase.firestore.Source.CACHE).await()
+                if (cached.exists()) cached else ref.get().await()
+            } catch (e: Exception) {
+                ref.get().await()
+            }
+            Log.d(PERF_TAG, "membership fetch: ${SystemClock.elapsedRealtime() - t} ms " +
+                    "(fromCache=${doc.metadata.isFromCache})")
 
             if (!doc.exists()) {
                 auth.signOut()
                 Result.failure(Exception("You are not registered with church \"$church\""))
             } else {
-                Result.success(user)
+                Result.success(LoginResult(user, doc.data))
             }
         } catch (e: Exception) {
             Result.failure(e)

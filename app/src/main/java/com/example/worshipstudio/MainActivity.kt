@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,9 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import com.example.worshipstudio.navigation.AppNavigation
 import com.example.worshipstudio.ui.theme.WorshipStudioTheme
 import com.example.worshipstudio.utils.AppTheme
@@ -35,64 +32,15 @@ class MainActivity : ComponentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
 
                     // ── Background layer — changes per theme ──────────────────
-                    when (appTheme) {
-                        AppTheme.NIGHTFALL -> {
-                            Image(
-                                painter            = painterResource(R.drawable.app_bg),
-                                contentDescription = null,
-                                contentScale       = ContentScale.Crop,
-                                modifier           = Modifier.fillMaxSize()
-                            )
-                        }
-                        AppTheme.DAWN_MIST -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFFFDF6EE),
-                                                Color(0xFFFAE8D8),
-                                                Color(0xFFF2D9E8),
-                                                Color(0xFFE8D5F0)
-                                            )
-                                        )
-                                    )
-                            )
-                        }
-                        AppTheme.HOLY_LIGHT -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFFFAFCFF),
-                                                Color(0xFFE8F3FF),
-                                                Color(0xFFD6EAFF),
-                                                Color(0xFFE9F5F0)
-                                            )
-                                        )
-                                    )
-                            )
-                        }
-                        AppTheme.SANCTUARY -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.linearGradient(
-                                            colors = listOf(
-                                                Color(0xFFFDFBF7),
-                                                Color(0xFFEEF5EE),
-                                                Color(0xFFE4EEF7),
-                                                Color(0xFFEDE8F6)
-                                            )
-                                        )
-                                    )
-                            )
-                        }
+                    val bgColors = when (appTheme) {
+                        AppTheme.NIGHTFALL -> listOf(Color(0xFF0D1311), Color(0xFF070B09))
+                        AppTheme.DAWN_MIST -> listOf(Color(0xFFF5FAF7), Color(0xFFEAF2ED))
                     }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Brush.verticalGradient(bgColors))
+                    )
 
                     // ── App content renders on top ─────────────────────────────
                     AppNavigation(

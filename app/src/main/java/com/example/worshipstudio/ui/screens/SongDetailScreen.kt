@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -57,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.worshipstudio.data.model.SongPart
@@ -181,14 +183,39 @@ fun SongDetailScreen(
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = { Text(state.song?.name ?: "") },
-                navigationIcon = {
+            // Custom two-row header: the song name gets its own full-width row
+            // so long names stay clear instead of being squeezed by the actions.
+            Column(modifier = Modifier.statusBarsPadding()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 16.dp, top = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
-                },
-                actions = {
+                    Text(
+                        text       = state.song?.name ?: "",
+                        fontSize   = 17.sp,
+                        lineHeight = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = MaterialTheme.colorScheme.onBackground,
+                        maxLines   = 2,
+                        overflow   = TextOverflow.Ellipsis,
+                        modifier   = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End
+                ) {
                     // ── Simplified / Full toggle pill ──────────────────────
                     Surface(
                         shape = RoundedCornerShape(50),
@@ -257,10 +284,15 @@ fun SongDetailScreen(
                                         tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-                        IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit") }
+                        IconButton(onClick = onEdit) {
+                            Icon(
+                                Icons.Default.Edit, "Edit",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     }
                 }
-            )
+            }
         }
     ) { padding ->
         when {

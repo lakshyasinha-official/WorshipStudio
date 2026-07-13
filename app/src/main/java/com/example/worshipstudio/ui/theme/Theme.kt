@@ -13,26 +13,26 @@ import androidx.core.view.WindowCompat
 import com.example.worshipstudio.utils.AppTheme
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NIGHTFALL  — dark purple / blue (uses app_bg.jpg image in MainActivity)
+// NEON — dark mint (Material scheme used by not-yet-migrated screens)
 // ─────────────────────────────────────────────────────────────────────────────
-private val NightfallScheme = darkColorScheme(
-    primary              = Color(0xFFBB86FC),
-    onPrimary            = Color(0xFF1A0033),
-    primaryContainer     = Color(0x664A0080),
-    onPrimaryContainer   = Color(0xFFD7AAFF),
-    secondary            = Color(0xFFFF79C6),
-    onSecondary          = Color(0xFF2D0030),
-    secondaryContainer   = Color(0x554A0050),
-    onSecondaryContainer = Color(0xFFFFB3E6),
+private val NeonScheme = darkColorScheme(
+    primary              = Color(0xFF4EE0A0),
+    onPrimary            = Color(0xFF06281A),
+    primaryContainer     = Color(0xFF1E4A38),
+    onPrimaryContainer   = Color(0xFFA8F0D2),
+    secondary            = Color(0xFFA5B4FC),
+    onSecondary          = Color(0xFF1B1660),
+    secondaryContainer   = Color(0xFF32306B),
+    onSecondaryContainer = Color(0xFFDDE1FF),
     tertiary             = Color(0xFF6BCEFF),
     onTertiary           = Color(0xFF00334A),
-    background           = Color(0x550A0A18),
-    onBackground         = Color.White,
-    surface              = Color(0x660D0D20),
-    onSurface            = Color.White,
-    surfaceVariant       = Color(0x4D1A1A35),
-    onSurfaceVariant     = Color(0xCCDDDDFF),
-    outline              = Color(0x55AAAACC),
+    background           = Color(0x550A0F0D),
+    onBackground         = Color(0xFFF2F5F3),
+    surface              = Color(0xF0111814),
+    onSurface            = Color(0xFFF2F5F3),
+    surfaceVariant       = Color(0xFF1A231E),
+    onSurfaceVariant     = Color(0xFFB8C4BE),
+    outline              = Color(0x55AACCBB),
     error                = Color(0xFFFF6B6B),
     onError              = Color.White,
     errorContainer       = Color(0x554A0000),
@@ -40,81 +40,27 @@ private val NightfallScheme = darkColorScheme(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DAWN MIST  — ivory · peach · blush  (light warm)
+// LIGHT — mint on ivory (Material scheme used by not-yet-migrated screens)
 // ─────────────────────────────────────────────────────────────────────────────
-private val DawnMistScheme = lightColorScheme(
-    primary              = Color(0xFFC4836C),   // warm terracotta
+private val MintLightScheme = lightColorScheme(
+    primary              = Color(0xFF10B981),
     onPrimary            = Color.White,
-    primaryContainer     = Color(0xFFFFD5C4),
-    onPrimaryContainer   = Color(0xFF3A1008),
-    secondary            = Color(0xFFAA7BA0),   // muted plum
+    primaryContainer     = Color(0xFFCDEFE2),
+    onPrimaryContainer   = Color(0xFF06301F),
+    secondary            = Color(0xFF4F46E5),
     onSecondary          = Color.White,
-    secondaryContainer   = Color(0xFFF2D9E8),
-    onSecondaryContainer = Color(0xFF3A0A30),
-    tertiary             = Color(0xFFD4956A),
+    secondaryContainer   = Color(0xFFE2E0FB),
+    onSecondaryContainer = Color(0xFF1B1660),
+    tertiary             = Color(0xFF3A8F74),
     onTertiary           = Color.White,
-    background           = Color(0x11FAE8D8),   // near-transparent — gradient shows
-    onBackground         = Color(0xFF2A1818),
-    surface              = Color(0xCCFFF8F4),   // warm white, 80% opaque
-    onSurface            = Color(0xFF2A1818),
-    surfaceVariant       = Color(0xAAF5EBE4),
-    onSurfaceVariant     = Color(0xFF5A3830),
-    outline              = Color(0xFFD4B8B0),
-    error                = Color(0xFFB3261E),
-    onError              = Color.White,
-    errorContainer       = Color(0xFFF9DEDC),
-    onErrorContainer     = Color(0xFF410E0B)
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HOLY LIGHT  — sky blue · white · sage  (light cool)
-// ─────────────────────────────────────────────────────────────────────────────
-private val HolyLightScheme = lightColorScheme(
-    primary              = Color(0xFF3A7FC1),   // sky blue
-    onPrimary            = Color.White,
-    primaryContainer     = Color(0xFFB8D8F8),
-    onPrimaryContainer   = Color(0xFF0A2A4A),
-    secondary            = Color(0xFF4A9975),   // sage
-    onSecondary          = Color.White,
-    secondaryContainer   = Color(0xFFB8ECD8),
-    onSecondaryContainer = Color(0xFF0A3020),
-    tertiary             = Color(0xFF7A9ECC),
-    onTertiary           = Color.White,
-    background           = Color(0x11D6EAFF),   // near-transparent
-    onBackground         = Color(0xFF1A2A3A),
-    surface              = Color(0xCCF5FAFF),   // cool white, 80% opaque
-    onSurface            = Color(0xFF1A2A3A),
-    surfaceVariant       = Color(0xAAE8F3FF),
-    onSurfaceVariant     = Color(0xFF2A4060),
-    outline              = Color(0xFFB0C8E0),
-    error                = Color(0xFFB3261E),
-    onError              = Color.White,
-    errorContainer       = Color(0xFFF9DEDC),
-    onErrorContainer     = Color(0xFF410E0B)
-)
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SANCTUARY  — cream · sage · lavender  (light neutral)
-// ─────────────────────────────────────────────────────────────────────────────
-private val SanctuaryScheme = lightColorScheme(
-    primary              = Color(0xFF7A8CCC),   // lavender
-    onPrimary            = Color.White,
-    primaryContainer     = Color(0xFFD4D9F0),
-    onPrimaryContainer   = Color(0xFF151A40),
-    secondary            = Color(0xFF6A9B6A),   // sage green
-    onSecondary          = Color.White,
-    secondaryContainer   = Color(0xFFCCE8CC),
-    onSecondaryContainer = Color(0xFF0A2A0A),
-    tertiary             = Color(0xFF9B8ACA),
-    onTertiary           = Color.White,
-    background           = Color(0x11EDE8F6),   // near-transparent
-    onBackground         = Color(0xFF252535),
-    surface              = Color(0xCCFAFBF8),   // cream white, 80% opaque
-    onSurface            = Color(0xFF252535),
-    surfaceVariant       = Color(0xAAEEF0EC),
-    onSurfaceVariant     = Color(0xFF404050),
-    outline              = Color(0xFFBBBBCC),
-    error                = Color(0xFFB3261E),
+    background           = Color(0x11EAF2ED),   // near-transparent — gradient shows
+    onBackground         = Color(0xFF16211B),
+    surface              = Color(0xCCFFFFFF),
+    onSurface            = Color(0xFF16211B),
+    surfaceVariant       = Color(0xAAEFF5F1),
+    onSurfaceVariant     = Color(0xFF3C4A42),
+    outline              = Color(0xFFB7C6BE),
+    error                = Color(0xFFC62828),
     onError              = Color.White,
     errorContainer       = Color(0xFFF9DEDC),
     onErrorContainer     = Color(0xFF410E0B)
@@ -128,14 +74,12 @@ fun WorshipStudioTheme(
     appTheme: AppTheme = AppTheme.NIGHTFALL,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (appTheme) {
-        AppTheme.NIGHTFALL  -> NightfallScheme
-        AppTheme.DAWN_MIST  -> DawnMistScheme
-        AppTheme.HOLY_LIGHT -> HolyLightScheme
-        AppTheme.SANCTUARY  -> SanctuaryScheme
-    }
-
     val isDark = appTheme == AppTheme.NIGHTFALL
+
+    val colorScheme = if (isDark) NeonScheme else MintLightScheme
+
+    // Drive the Mint design tokens (new-style screens) from the app theme.
+    Mint.isLight = !isDark
 
     val view = LocalView.current
     if (!view.isInEditMode) {

@@ -5,7 +5,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -80,6 +81,7 @@ private fun SimplifiedLyricLine(line: String, textSize: Int) {
 }
 
 // ── Full chord + lyric line ───────────────────────────────────────────────────
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChordLyricLine(
     line:              String,
@@ -109,9 +111,14 @@ private fun ChordLyricLine(
         i++
     }
 
-    Row(verticalAlignment = Alignment.Bottom) {
+    // FlowRow: segments that don't fit wrap to the next line as whole
+    // chord+lyric units instead of being squeezed into a vertical sliver.
+    FlowRow {
         segments.forEach { (chord, degree, text) ->
-            Column(horizontalAlignment = Alignment.Start) {
+            Column(
+                horizontalAlignment = Alignment.Start,
+                modifier = Modifier.align(Alignment.Bottom)
+            ) {
                 if (chord != null && degree != null) {
                     val isActive = degree == activeChordDegree
                     val chordColor = if (isActive) ActiveChordColor
@@ -156,7 +163,12 @@ private fun ChordLyricLine(
                     // Placeholder to keep lyric rows aligned
                     Text(text = " ", fontSize = (textSize - 2).sp, lineHeight = (textSize + 2).sp)
                 }
-                Text(text = text, fontSize = textSize.sp, lineHeight = (textSize + 4).sp)
+                Text(
+                    text       = text,
+                    fontSize   = textSize.sp,
+                    lineHeight = (textSize + 4).sp,
+                    color      = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

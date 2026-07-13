@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.worshipstudio.ui.components.FloatingChat
@@ -232,13 +233,17 @@ fun AppNavigation(
         }
     } // end NavHost
 
-    // ── Floating chat — visible on every screen once logged in ────────────────
+    // ── Fixed chat button — visible on every screen once logged in ────────────
     if (authState.isLoggedIn && authState.churchId.isNotEmpty()) {
+        val backStackEntry by navController.currentBackStackEntryAsState()
+        val onSongList = backStackEntry?.destination?.route == Screen.SongList.route
         FloatingChat(
             chatViewModel   = chatViewModel,
             currentUserId   = authState.userId,
             currentUserName = authState.displayName,
-            churchId        = authState.churchId
+            churchId        = authState.churchId,
+            // Fixed in the song-list header; draggable bubble everywhere else
+            fixedTopRight   = onSongList
         )
     }
 
